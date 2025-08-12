@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>簡易零用金系統</title>
+<title>簡易零用金系統（GAS 連線・性能優化版）</title>
 <style>
   :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
     --acc:#22d3ee; --danger:#ef4444; --ok:#22c55e; --line:#1f2937; --chip:#0b2a33 }
@@ -25,11 +25,12 @@
   .calendar-btn:hover{border-color:#244b63}
   .invalid{border-color:var(--danger)!important; outline: none}
 
-  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 20px}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 8px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
   .card h3{margin:0 0 4px;font-size:13px;color:var(--muted)}
   .card .val{font-size:22px;font-weight:700}
   .val.in{color:var(--ok)} .val.out{color:var(--danger)} .val.bal{color:var(--acc)}
+  .hint{margin:0 0 12px}
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
   .toolbar input,.toolbar select{background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px}
@@ -79,7 +80,6 @@
   .login .role-cta{display:flex;gap:8px;flex-wrap:wrap}
   .warn{font-size:12px;color:#eab308}
 
-  /* 簡單 loading */
   .loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:50}
   .loading.show{display:flex}
 </style>
@@ -94,6 +94,7 @@
         <button id="logoutBtn" class="btn-ghost" style="display:none">登出</button>
         <span class="muted">|</span>
         <button id="addBtn" class="btn-primary">＋ 新增紀錄</button>
+        <button id="loadAllBtn" class="btn-ghost" title="載入所有資料（可能較慢）">載入全部</button>
         <button id="exportBtn" class="btn">匯出 JSON</button>
         <label id="importWrap" class="btn-ghost" style="border:1px dashed var(--line);padding:8px 12px;border-radius:10px;cursor:pointer">
           匯入 JSON <input id="importInput" type="file" accept="application/json" style="display:none">
@@ -102,12 +103,12 @@
     </header>
 
     <section class="summary">
-      <div class="card"><h3>總收入</h3><div class="val in" id="sumIn">0</div></div>
-      <div class="card"><h3>總支出</h3><div class="val out" id="sumOut">0</div></div>
-      <div class="card"><h3>結餘</h3><div class="val bal" id="balance">0</div></div>
+      <div class="card"><h3>總收入（目前載入）</h3><div class="val in" id="sumIn">0</div></div>
+      <div class="card"><h3>總支出（目前載入）</h3><div class="val out" id="sumOut">0</div></div>
+      <div class="card"><h3>結餘（目前載入）</h3><div class="val bal" id="balance">0</div></div>
     </section>
+    <p class="muted hint" id="loadHint" style="display:none">目前僅載入最近 500 筆。若需完整統計，請點右上角「載入全部」。</p>
 
-    <!-- 篩選：單一日期（YYYYMMDD） + 類型 + 分類 + 關鍵字 -->
     <section class="toolbar">
       <div class="inline-field">
         <input type="text" id="dateExact" placeholder="YYYYMMDD"
@@ -124,7 +125,6 @@
         <option value="income">收入</option>
         <option value="expense">支出</option>
       </select>
-      <!-- 由 JS 依「類型」動態填入分類 -->
       <select id="categoryFilter"></select>
 
       <input type="text" id="kw" placeholder="搜尋備註關鍵字…" />
@@ -152,7 +152,7 @@
     </section>
   </div>
 
-  <!-- 新增/編輯 Modal（日期可手動與下拉日曆） -->
+  <!-- 新增/編輯 Modal -->
   <div class="modal" id="entryModal" aria-hidden="true">
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
       <header><h2 id="dlgTitle" style="font-size:16px;margin:0">新增紀錄</h2></header>
@@ -198,7 +198,7 @@
     </div>
   </div>
 
-  <!-- 登入 Modal（前端角色切換；非 Google 登入） -->
+  <!-- 登入 Modal（前端角色切換；示範用） -->
   <div class="modal login" id="loginModal" aria-hidden="true">
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <header><h2 id="loginTitle" style="font-size:16px;margin:0">登入系統</h2></header>
@@ -213,6 +213,7 @@
         <div id="adminForm" class="form-row" style="display:none">
           <label class="req">管理者密碼</label>
           <input id="adminPwd" type="password" placeholder="輸入 admin 密碼" />
+          <div class="warn">提示：示範用；正式上線請改後端驗證。</div>
         </div>
       </div>
       <footer>
@@ -222,84 +223,61 @@
     </div>
   </div>
 
-  <!-- 簡易 loading -->
   <div class="loading" id="loading"><div class="card">資料處理中，請稍候…</div></div>
 
 <script>
-  /* =======================
-     後端 API （Google Apps Script）
-     將 API_URL 換成你部署的 Web App URL（/exec）
-     將 API_SECRET 換成你在 GAS 中設定的 SECRET
-     ======================= */
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec'; 
-  const API_SECRET = 'jb7pRkuXUxPSL9B';     
+  /* ===== 後端 API（GAS）設定：填入你的 URL / SECRET ===== */
+  const API_URL = 'https://script.google.com/macros/s/xxxx/exec'; // ← 改成你的 Web app URL（/exec）
+  const API_SECRET = 'change-this-to-your-own-long-random-secret'; // ← 改成你在 Script properties 的 API_SECRET
+  const INITIAL_LIMIT = 500;
 
-const POST_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
-const postForm = (payload) =>
-  fetch(API_URL, {
-    method: 'POST',
-    headers: POST_HEADERS,
-    body: new URLSearchParams({ json: JSON.stringify(payload) })
-  }).then(r => r.json());
+  /* ===== 免預檢 POST：x-www-form-urlencoded ===== */
+  const POST_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
+  const postForm = (payload) =>
+    fetch(API_URL, {
+      method: 'POST',
+      headers: POST_HEADERS,
+      body: new URLSearchParams({ json: JSON.stringify(payload) })
+    }).then(r => r.json());
 
-async function addEntry(row){
-  const json = await postForm({ secret: API_SECRET, action:'add', row });
-  if(!json.ok) throw new Error(json.error || 'add failed');
-  return json.id;
-}
-async function updateEntry(id, patch){
-  const json = await postForm({ secret: API_SECRET, action:'update', id, patch });
-  if(!json.ok) throw new Error(json.error || 'update failed');
-}
-async function deleteEntry(id){
-  const json = await postForm({ secret: API_SECRET, action:'delete', id });
-  if(!json.ok) throw new Error(json.error || 'delete failed');
-}
-  async function listEntries(){
-    const res = await fetch(API_URL + '?action=list', { method:'GET' });
+  /* ===== API 函式 ===== */
+  async function listEntries(params = {}){
+    const qs = new URLSearchParams({ action:'list', ...params });
+    const res = await fetch(API_URL + '?' + qs.toString(), { method:'GET' });
     const json = await res.json();
     if(!json.ok) throw new Error(json.error || 'list failed');
     return json.rows || [];
   }
- /* async function addEntry(row){
-    const res = await fetch(API_URL, {
-      method:'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ secret: API_SECRET, action:'add', row })
-    });
-    const json = await res.json();
+  async function addEntry(row){
+    const json = await postForm({ secret: API_SECRET, action:'add', row });
     if(!json.ok) throw new Error(json.error || 'add failed');
     return json.id;
   }
   async function updateEntry(id, patch){
-    const res = await fetch(API_URL, {
-      method:'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ secret: API_SECRET, action:'update', id, patch })
-    });
-    const json = await res.json();
+    const json = await postForm({ secret: API_SECRET, action:'update', id, patch });
     if(!json.ok) throw new Error(json.error || 'update failed');
   }
   async function deleteEntry(id){
-    const res = await fetch(API_URL, {
-      method:'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ secret: API_SECRET, action:'delete', id })
-    });
-    const json = await res.json();
+    const json = await postForm({ secret: API_SECRET, action:'delete', id });
     if(!json.ok) throw new Error(json.error || 'delete failed');
-  }*/
+  }
+  async function bulkAddEntries(rows){
+    const json = await postForm({ secret: API_SECRET, action:'bulk_add', rows });
+    if(!json.ok) throw new Error(json.error || 'bulk_add failed');
+    return json.count;
+  }
 
-  // ====== State & 常數（不再使用 localStorage 存資料） ======
-  const LS_ROLE = 'pettyCashRole.v1'; // 只保留角色在前端
-  let entries = [];                    // 由 API 載入
+  /* ===== 狀態 ===== */
+  const LS_ROLE = 'pettyCashRole.v1';
+  let entries = [];            // 目前已載入的資料
   let editingId = null;
   let role = localStorage.getItem(LS_ROLE) || '';
+  let loadedAll = false;       // 是否已載入全部
 
   const INCOME_CATS  = ['零用金','其他'];
   const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','廣弘','咖啡','牛奶','五金','補POS','其他'];
 
-  // ====== Helpers ======
+  /* ===== Helpers ===== */
   const $ = s => document.querySelector(s);
   const isMobile = () => matchMedia('(max-width:720px)').matches;
   const fmtMoney = n => (n||0).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -327,7 +305,7 @@ async function deleteEntry(id){
   }
   const dashedToYmd = d => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.replaceAll('-','') : '');
 
-  // ====== 分類 & 備註規則 ======
+  /* ===== 分類 & 備註規則 ===== */
   function populateCategoryForForm(type, keepVal){
     const sel = $('#fCategory');
     const list = (type==='income') ? INCOME_CATS : EXPENSE_CATS;
@@ -349,7 +327,7 @@ async function deleteEntry(id){
       : (type==='income' ? '收入／零用金：備註可留白' : '支出／非「其他」：備註可留白');
   }
 
-  // ====== 篩選 ======
+  /* ===== 篩選（前端對目前載入資料） ===== */
   function populateFilterCategories(typeVal, keepVal){
     const sel = $('#categoryFilter');
     let html = '<option value="">全部分類</option>';
@@ -379,7 +357,7 @@ async function deleteEntry(id){
     });
   }
 
-  // ====== 渲染 ======
+  /* ===== 渲染 ===== */
   function calcSummary(list){
     const sumIn = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
     const sumOut = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
@@ -429,7 +407,8 @@ async function deleteEntry(id){
       </div>`;
   }
   function render(){
-    const filtered = applyFilters(entries.slice().sort((a,b)=>b.date.localeCompare(a.date)));
+    const sorted = entries.slice().sort((a,b)=> b.date.localeCompare(a.date));
+    const filtered = applyFilters(sorted);
     calcSummary(filtered);
     const tbody = $('#tbody'), list = $('#list'), empty = $('#empty');
 
@@ -446,9 +425,8 @@ async function deleteEntry(id){
     }
   }
 
-  // ====== 事件 ======
-  // Login（前端角色切換）
-  const ADMIN_PASS = 'ssY@94540923'; // 前端示範密碼（未做後端驗證）
+  /* ===== 事件：登入（前端示範） ===== */
+  const ADMIN_PASS = 'ssY@94540923';
   function openLogin(){ const m = $('#loginModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false'); $('#adminForm').style.display='none'; }
   function closeLogin(){ const m = $('#loginModal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); $('#adminPwd').value=''; }
 
@@ -468,7 +446,7 @@ async function deleteEntry(id){
   });
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ if($('#loginModal').classList.contains('show')) closeLogin(); if($('#entryModal').classList.contains('show')) closeEntry(); }});
 
-  // 新增/編輯 Modal
+  /* ===== 新增/編輯 Modal ===== */
   function openEntry(editItem){
     $('#entryModal').classList.add('show');
     $('#entryModal').setAttribute('aria-hidden','false');
@@ -483,9 +461,9 @@ async function deleteEntry(id){
     }else{
       $('#dlgTitle').textContent = '新增紀錄';
       editingId = null;
-      t.value = 'expense';                               // 預設支出
+      t.value = 'expense';
       populateCategoryForForm('expense', null);
-      d.value = todayStr();                              // 預設今天
+      d.value = todayStr();
       n.value = ''; a.value = '';
     }
     applyNoteRequired();
@@ -495,13 +473,10 @@ async function deleteEntry(id){
 
   $('#addBtn').addEventListener('click', ()=> openEntry(null));
   $('#cancelBtn').addEventListener('click', closeEntry);
-  $('#fType').addEventListener('change', ()=>{
-    populateCategoryForForm($('#fType').value, null);
-    applyNoteRequired();
-  });
+  $('#fType').addEventListener('change', ()=>{ populateCategoryForForm($('#fType').value, null); applyNoteRequired(); });
   $('#fCategory').addEventListener('change', applyNoteRequired);
 
-  // 儲存（新增/編輯）
+  /* ===== 儲存（樂觀更新，不重撈） ===== */
   $('#saveBtn').addEventListener('click', async ()=>{
     const date = $('#fDate').value;
     const type = $('#fType').value;
@@ -518,12 +493,23 @@ async function deleteEntry(id){
       showLoading(true);
       if(editingId){
         if(role !== 'admin'){ alert('訪客模式不可編輯'); return; }
-        await updateEntry(editingId, { date, type, category, note, amount });
+        // 前端先改 → 成功呼叫 API（失敗再回滾）
+        const idx = entries.findIndex(x=>x.id===editingId);
+        const backup = idx>-1 ? {...entries[idx]} : null;
+        if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount }; render(); }
+        try{
+          await updateEntry(editingId, { date, type, category, note, amount });
+        }catch(e){
+          if(backup){ entries[idx] = backup; render(); }
+          throw e;
+        }
       }else{
-        await addEntry({ date, type, category, note, amount });
+        // 新增：先送 API 拿 id → 就地加入，不重撈
+        const id = await addEntry({ date, type, category, note, amount });
+        entries.unshift({ id, date, type, category, note, amount });
+        render();
       }
-      entries = await listEntries();
-      render(); closeEntry();
+      closeEntry();
     }catch(err){
       alert('操作失敗：' + err.message);
     }finally{
@@ -531,7 +517,7 @@ async function deleteEntry(id){
     }
   });
 
-  // 行內金額（admin）— 用 change 事件降低 API 次數
+  /* ===== 行內金額（admin）— change 才送出（樂觀更新） ===== */
   document.body.addEventListener('change', async (e)=>{
     const el = e.target;
     if(el.matches('[data-amt]')){
@@ -540,17 +526,19 @@ async function deleteEntry(id){
       const id = host.getAttribute('data-id');
       const val = parseFloat(el.value);
       if(isNaN(val)) return;
+      const idx = entries.findIndex(x=>x.id===id);
+      const backup = idx>-1 ? entries[idx].amount : null;
+      if(idx>-1){ entries[idx].amount = val; render(); }
       try{
-        showLoading(true);
         await updateEntry(id, { amount: val });
-        entries = await listEntries();
-        render();
-      }catch(err){ alert('更新失敗：' + err.message); }
-      finally{ showLoading(false); }
+      }catch(err){
+        if(idx>-1){ entries[idx].amount = backup; render(); }
+        alert('更新失敗：' + err.message);
+      }
     }
   });
 
-  // 列表上的編輯/刪除
+  /* ===== 列表上的編輯/刪除（樂觀更新） ===== */
   document.body.addEventListener('click', async (e)=>{
     const btn = e.target.closest('button[data-act]');
     if(!btn) return;
@@ -567,17 +555,19 @@ async function deleteEntry(id){
     }else if(act==='del'){
       if(role!=='admin'){ alert('訪客模式不可刪除'); return; }
       if(!confirm('確認刪除這筆紀錄？')) return;
+      const idx = entries.findIndex(x=>x.id===id);
+      const backup = idx>-1 ? entries[idx] : null;
+      if(idx>-1){ entries.splice(idx,1); render(); }
       try{
-        showLoading(true);
         await deleteEntry(id);
-        entries = await listEntries();
-        render();
-      }catch(err){ alert('刪除失敗：' + err.message); }
-      finally{ showLoading(false); }
+      }catch(err){
+        if(backup){ entries.splice(idx,0,backup); render(); }
+        alert('刪除失敗：' + err.message);
+      }
     }
   });
 
-  // 篩選：日期（文字 + 日曆）
+  /* ===== 篩選：日期（文字 + 日曆） ===== */
   const dateTxt = $('#dateExact');
   const datePicker = $('#dateExactPicker');
   $('#openCalendar').addEventListener('click', ()=>{
@@ -597,7 +587,6 @@ async function deleteEntry(id){
     render();
   });
 
-  // 篩選：類型變動 → 連動分類
   $('#typeFilter').addEventListener('input', ()=>{
     const prev = $('#categoryFilter').value;
     populateFilterCategories($('#typeFilter').value, prev);
@@ -612,13 +601,13 @@ async function deleteEntry(id){
     render();
   });
 
-  // 匯出（admin：把目前 entries 另存 JSON）
+  /* ===== 匯出（admin）：抓「全部」再輸出 ===== */
   $('#exportBtn').addEventListener('click', async ()=>{
     if (role !== 'admin') { alert('只有管理者可匯出'); return; }
     try{
       showLoading(true);
-      const fresh = await listEntries();
-      const blob = new Blob([JSON.stringify(fresh,null,2)], {type:'application/json'});
+      const all = await listEntries(); // 匯出才抓全量，平時不抓
+      const blob = new Blob([JSON.stringify(all,null,2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'petty-cash.json'; a.click();
       URL.revokeObjectURL(url);
@@ -626,7 +615,7 @@ async function deleteEntry(id){
     finally{ showLoading(false); }
   });
 
-  // 匯入（admin：逐筆呼叫 addEntry）
+  /* ===== 匯入（admin）：批次上傳 ===== */
   $('#importInput').addEventListener('change', async (e)=>{
     if (role !== 'admin') { alert('只有管理者可匯入'); e.target.value=''; return; }
     const file = e.target.files[0]; if(!file) return;
@@ -635,28 +624,29 @@ async function deleteEntry(id){
       const text = await file.text();
       const data = JSON.parse(text);
       if(!Array.isArray(data)) throw new Error('格式不正確，需為陣列');
-      // 逐筆新增（避免 API 節流問題）
-      for (const x of data){
-        const row = {
-          date: x.date, type: x.type, category: x.category,
-          note: x.note || '', amount: Number(x.amount)||0
-        };
-        await addEntry(row);
-      }
-      entries = await listEntries();
-      render(); alert('匯入完成');
+
+      const rows = data.map(x=>({
+        date: x.date, type: x.type, category: x.category,
+        note: x.note || '', amount: Number(x.amount)||0
+      }));
+      const count = await bulkAddEntries(rows);
+      // 就地合併進目前資料（不重撈）
+      const nowAdded = rows.map(r => ({ id: 'temp-'+Math.random().toString(36).slice(2), ...r }));
+      entries = nowAdded.concat(entries);
+      render();
+      alert('匯入完成：' + count + ' 筆');
     }catch(err){ alert('匯入失敗：'+err.message); }
     finally{ e.target.value=''; showLoading(false); }
   });
 
-  // 新增視窗：日期按鈕強制開啟原生日曆（含 fallback）
+  /* ===== 新增視窗：日期開原生日曆（含 fallback） ===== */
   const fDate = $('#fDate');
   const fDateFallback = $('#fDateFallback');
   const fDateBtn = $('#openFDateCal');
   fDateBtn.addEventListener('click', () => {
     if (typeof fDate.showPicker === 'function') {
       fDate.focus();
-      try { fDate.showPicker(); } catch { /* fallback */ }
+      try { fDate.showPicker(); } catch { /* noop */ }
     } else {
       fDateFallback.value = fDate.value || todayStr();
       if (typeof fDateFallback.showPicker === 'function') fDateFallback.showPicker();
@@ -667,16 +657,32 @@ async function deleteEntry(id){
     if (fDateFallback.value) fDate.value = fDateFallback.value;
   });
 
-  // 啟動
+  /* ===== 載入全部 ===== */
+  $('#loadAllBtn').addEventListener('click', async ()=>{
+    if (loadedAll) return;
+    try{
+      showLoading(true);
+      const all = await listEntries(); // 抓全量
+      entries = all;
+      loadedAll = true;
+      $('#loadHint').style.display = 'none';
+      render();
+    }catch(err){ alert('載入全部失敗：' + err.message); }
+    finally{ showLoading(false); }
+  });
+
+  /* ===== 啟動 ===== */
   function boot(){
-    populateFilterCategories('', '');     // 建立分類篩選下拉
-    setRole(role || '');                  // 立即套用角色外觀（訪客/未登入隱藏匯出/匯入）
-    if(!role) openLogin();                // 沒有已登入角色才開登入窗
-    // 初次載入資料
+    populateFilterCategories('', '');
+    setRole(role || '');
+    if(!role) openLogin();
+
     (async ()=>{
       try{
         showLoading(true);
-        entries = await listEntries();
+        entries = await listEntries({ limit: INITIAL_LIMIT });
+        loadedAll = false;
+        $('#loadHint').style.display = 'block';
         render();
       }catch(err){
         alert('載入資料失敗：' + err.message);
@@ -684,7 +690,7 @@ async function deleteEntry(id){
         showLoading(false);
       }
     })();
-    // RWD 切換重繪
+
     const mq = window.matchMedia('(max-width:720px)');
     (mq.addEventListener ? mq.addEventListener('change', render) : mq.addListener(render));
     let _rszTimer; window.addEventListener('resize', ()=>{ clearTimeout(_rszTimer); _rszTimer = setTimeout(render, 120); });
@@ -694,8 +700,3 @@ async function deleteEntry(id){
 </script>
 </body>
 </html>
-
-
-
-
-
