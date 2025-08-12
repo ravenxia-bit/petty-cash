@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>簡易零用金系統（GAS 連線・性能優化版）</title>
+<title>簡易零用金系統</title>
 <style>
   :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
     --acc:#22d3ee; --danger:#ef4444; --ok:#22c55e; --line:#1f2937; --chip:#0b2a33 }
@@ -198,7 +198,7 @@
     </div>
   </div>
 
-  <!-- 登入 Modal（前端角色切換；示範用） -->
+  <!-- 登入 Modal（前端角色切換） -->
   <div class="modal login" id="loginModal" aria-hidden="true">
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <header><h2 id="loginTitle" style="font-size:16px;margin:0">登入系統</h2></header>
@@ -206,14 +206,13 @@
         <div class="form-row">
           <h3>選擇角色</h3>
           <div class="role-cta">
-            <button id="asGuest" class="btn">以訪客進入（可新增；不可編輯/刪除）</button>
+            <button id="asGuest" class="btn">以訪客進入</button>
             <button id="asAdmin" class="btn-primary">管理者登入</button>
           </div>
         </div>
         <div id="adminForm" class="form-row" style="display:none">
           <label class="req">管理者密碼</label>
           <input id="adminPwd" type="password" placeholder="輸入 admin 密碼" />
-          <div class="warn">提示：示範用；正式上線請改後端驗證。</div>
         </div>
       </div>
       <footer>
@@ -226,9 +225,9 @@
   <div class="loading" id="loading"><div class="card">資料處理中，請稍候…</div></div>
 
 <script>
-  /* ===== 後端 API（GAS）設定：填入你的 URL / SECRET ===== */
-  const API_URL = 'https://script.google.com/macros/s/xxxx/exec'; // ← 改成你的 Web app URL（/exec）
-  const API_SECRET = 'change-this-to-your-own-long-random-secret'; // ← 改成你在 Script properties 的 API_SECRET
+  /* ===== 後端 API（GAS）設定===== */
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec'; 
+  const API_SECRET = 'jb7pRkuXUxPSL9B';
   const INITIAL_LIMIT = 500;
 
   /* ===== 免預檢 POST：x-www-form-urlencoded ===== */
@@ -700,3 +699,4 @@
 </script>
 </body>
 </html>
+
