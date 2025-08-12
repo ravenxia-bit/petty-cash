@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://script.google.com">
 <title>簡易零用金系統</title>
 <style>
   :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
@@ -225,6 +227,7 @@
   <div class="loading" id="loading"><div class="card">資料處理中，請稍候…</div></div>
 
 <script>
+  const LS_CACHE = 'pettyCashCache.v1'; // 存最近一次成功載入的 rows（僅作快顯用）
   /* ===== 後端 API（GAS）設定 ===== */
   const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec';
   const API_SECRET = 'jb7pRkuXUxPSL9B';
@@ -503,6 +506,7 @@
       }
       return;
     }
+    localStorage.setItem(LS_CACHE, JSON.stringify({ ts: Date.now(), rows: entries, limit: INITIAL_LIMIT }));
 
     // 新增：樂觀新增（先插入暫時資料、關視窗，再背景送 API；失敗回滾）
     const tempId = 'tmp-' + Math.random().toString(36).slice(2);
@@ -687,30 +691,47 @@
 
   /* ===== 啟動 ===== */
   function boot(){
-    populateFilterCategories('', '');
-    setRole(role || '');
-    if(!role) openLogin();
+    function boot(){
+  populateFilterCategories('', '');
+  setRole(role || '');
+  if(!role) openLogin();
 
-    (async ()=>{
-      try{
-        showLoading(true);
-        entries = await listEntries({ limit: INITIAL_LIMIT }); // 先抓 500 筆
-        loadedAll = false;
-        $('#loadHint').style.display = 'block';
-        render();
-      }catch(err){
-        alert('載入資料失敗：' + err.message);
-      }finally{
-        showLoading(false);
-      }
-    })();
+  // 先讀本機快取，秒開畫面
+  try{
+    const cached = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
+    if (cached && Array.isArray(cached.rows) && cached.rows.length) {
+      entries = cached.rows;
+      loadedAll = (cached.limit ? false : true);
+      $('#loadHint').style.display = cached.limit ? 'block' : 'none';
+      render();
+    }
+  }catch{}
 
-    const mq = window.matchMedia('(max-width:720px)');
-    (mq.addEventListener ? mq.addEventListener('change', render) : mq.addListener(render));
-    let _rszTimer; window.addEventListener('resize', ()=>{ clearTimeout(_rszTimer); _rszTimer = setTimeout(render, 120); });
-    window.addEventListener('orientationchange', render);
-  }
+  // 背景更新雲端資料（不阻塞首屏）
+  (async ()=>{
+    try{
+      showLoading(true);
+      const fresh = await listEntries({ limit: INITIAL_LIMIT });
+      entries = fresh;
+      localStorage.setItem(LS_CACHE, JSON.stringify({ ts: Date.now(), rows: fresh, limit: INITIAL_LIMIT }));
+      loadedAll = false;
+      $('#loadHint').style.display = 'block';
+      render();
+    }catch(err){
+      if(!entries.length) alert('載入資料失敗：' + err.message);
+    }finally{
+      showLoading(false);
+    }
+  })();
+
+  const mq = window.matchMedia('(max-width:720px)');
+  (mq.addEventListener ? mq.addEventListener('change', render) : mq.addListener(render));
+  let _rszTimer; window.addEventListener('resize', ()=>{ clearTimeout(_rszTimer); _rszTimer = setTimeout(render, 120); });
+  window.addEventListener('orientationchange', render);
+}
+
   boot();
 </script>
 </body>
 </html>
+
