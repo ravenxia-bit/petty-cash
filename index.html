@@ -235,13 +235,35 @@
   const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec'; // ← 改成你的
   const API_SECRET = 'jb7pRkuXUxPSL9B';     // ← 改成你的
 
+  // 放在 API_URL / API_SECRET 定義之後
+const POST_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
+const postForm = (payload) =>
+  fetch(API_URL, {
+    method: 'POST',
+    headers: POST_HEADERS,
+    body: new URLSearchParams({ json: JSON.stringify(payload) })
+  }).then(r => r.json());
+
+async function addEntry(row){
+  const json = await postForm({ secret: API_SECRET, action:'add', row });
+  if(!json.ok) throw new Error(json.error || 'add failed');
+  return json.id;
+}
+async function updateEntry(id, patch){
+  const json = await postForm({ secret: API_SECRET, action:'update', id, patch });
+  if(!json.ok) throw new Error(json.error || 'update failed');
+}
+async function deleteEntry(id){
+  const json = await postForm({ secret: API_SECRET, action:'delete', id });
+  if(!json.ok) throw new Error(json.error || 'delete failed');
+}
   async function listEntries(){
     const res = await fetch(API_URL + '?action=list', { method:'GET' });
     const json = await res.json();
     if(!json.ok) throw new Error(json.error || 'list failed');
     return json.rows || [];
   }
-  async function addEntry(row){
+ /* async function addEntry(row){
     const res = await fetch(API_URL, {
       method:'POST',
       headers: { 'Content-Type':'application/json' },
@@ -268,7 +290,7 @@
     });
     const json = await res.json();
     if(!json.ok) throw new Error(json.error || 'delete failed');
-  }
+  }*/
 
   // ====== State & 常數（不再使用 localStorage 存資料） ======
   const LS_ROLE = 'pettyCashRole.v1'; // 只保留角色在前端
@@ -674,4 +696,5 @@
 </script>
 </body>
 </html>
+
 
