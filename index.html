@@ -198,7 +198,7 @@
     </div>
   </div>
 
-  <!-- 登入 Modal（前端角色切換） -->
+  <!-- 登入 Modal（前端示範） -->
   <div class="modal login" id="loginModal" aria-hidden="true">
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <header><h2 id="loginTitle" style="font-size:16px;margin:0">登入系統</h2></header>
@@ -225,8 +225,8 @@
   <div class="loading" id="loading"><div class="card">資料處理中，請稍候…</div></div>
 
 <script>
-  /* ===== 後端 API（GAS）設定===== */
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec'; 
+  /* ===== 後端 API（GAS）設定 ===== */
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec';
   const API_SECRET = 'jb7pRkuXUxPSL9B';
   const INITIAL_LIMIT = 500;
 
@@ -396,8 +396,8 @@
           <div>${amountBlock}</div>
         </div>
         <div class="row-mid">
-          <div><strong>日期</strong>：${item.date}</div>
-          <div><strong>備註</strong>：<span class="row-note">${item.note||'—'}</span></div>
+          <div><strong>日期</強>：${item.date}</div>
+          <div><strong>備註</強>：<span class="row-note">${item.note||'—'}</span></div>
         </div>
         <div class="row-actions">
           <button class="btn ${disableActions?'disabled':''}" data-act="edit">編輯</button>
@@ -475,7 +475,7 @@
   $('#fType').addEventListener('change', ()=>{ populateCategoryForForm($('#fType').value, null); applyNoteRequired(); });
   $('#fCategory').addEventListener('change', applyNoteRequired);
 
-  /* ===== 儲存（樂觀更新，不重撈） ===== */
+  /* ===== 儲存 ===== */
   $('#saveBtn').addEventListener('click', async ()=>{
     const date = $('#fDate').value;
     const type = $('#fType').value;
@@ -488,31 +488,39 @@
     if(category === '其他' && !note) return alert('此分類需填寫備註');
     if(!(amount>=0)) return alert('請輸入正確金額');
 
-    try{
-      showLoading(true);
-      if(editingId){
-        if(role !== 'admin'){ alert('訪客模式不可編輯'); return; }
-        // 前端先改 → 成功呼叫 API（失敗再回滾）
-        const idx = entries.findIndex(x=>x.id===editingId);
-        const backup = idx>-1 ? {...entries[idx]} : null;
-        if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount }; render(); }
-        try{
-          await updateEntry(editingId, { date, type, category, note, amount });
-        }catch(e){
-          if(backup){ entries[idx] = backup; render(); }
-          throw e;
-        }
-      }else{
-        // 新增：先送 API 拿 id → 就地加入，不重撈
-        const id = await addEntry({ date, type, category, note, amount });
-        entries.unshift({ id, date, type, category, note, amount });
-        render();
-      }
+    // 編輯：樂觀更新（先改前端，再打 API；失敗回滾）
+    if(editingId){
+      if(role !== 'admin'){ alert('訪客模式不可編輯'); return; }
+      const idx = entries.findIndex(x=>x.id===editingId);
+      const backup = idx>-1 ? {...entries[idx]} : null;
+      if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount }; render(); }
       closeEntry();
+      try{
+        await updateEntry(editingId, { date, type, category, note, amount });
+      }catch(e){
+        if(backup){ entries[idx] = backup; render(); }
+        alert('更新失敗：' + e.message);
+      }
+      return;
+    }
+
+    // 新增：樂觀新增（先插入暫時資料、關視窗，再背景送 API；失敗回滾）
+    const tempId = 'tmp-' + Math.random().toString(36).slice(2);
+    const temp = { id: tempId, date, type, category, note, amount };
+    entries.unshift(temp);
+    render();
+    closeEntry();
+
+    try{
+      const realId = await addEntry({ date, type, category, note, amount });
+      const i = entries.findIndex(x => x.id === tempId);
+      if (i > -1) entries[i].id = realId;
+      render();
     }catch(err){
-      alert('操作失敗：' + err.message);
-    }finally{
-      showLoading(false);
+      const i = entries.findIndex(x => x.id === tempId);
+      if (i > -1) entries.splice(i, 1);
+      render();
+      alert('新增失敗：' + err.message);
     }
   });
 
@@ -605,7 +613,7 @@
     if (role !== 'admin') { alert('只有管理者可匯出'); return; }
     try{
       showLoading(true);
-      const all = await listEntries(); // 匯出才抓全量，平時不抓
+      const all = await listEntries(); // 匯出才抓全量
       const blob = new Blob([JSON.stringify(all,null,2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'petty-cash.json'; a.click();
@@ -614,7 +622,7 @@
     finally{ showLoading(false); }
   });
 
-  /* ===== 匯入（admin）：批次上傳 ===== */
+  /* ===== 匯入（admin）：批次上傳（後端未支援時自動逐筆 fall back） ===== */
   $('#importInput').addEventListener('change', async (e)=>{
     if (role !== 'admin') { alert('只有管理者可匯入'); e.target.value=''; return; }
     const file = e.target.files[0]; if(!file) return;
@@ -628,12 +636,19 @@
         date: x.date, type: x.type, category: x.category,
         note: x.note || '', amount: Number(x.amount)||0
       }));
-      const count = await bulkAddEntries(rows);
-      // 就地合併進目前資料（不重撈）
-      const nowAdded = rows.map(r => ({ id: 'temp-'+Math.random().toString(36).slice(2), ...r }));
-      entries = nowAdded.concat(entries);
+
+      try{
+        await bulkAddEntries(rows); // 快速批次
+        entries = rows.map(r => ({ id: 'tmp-'+Math.random().toString(36).slice(2), ...r })).concat(entries);
+      }catch{
+        // 後端沒有 bulk_add 就逐筆
+        for (const r of rows){
+          const id = await addEntry(r);
+          entries.unshift({ id, ...r });
+        }
+      }
       render();
-      alert('匯入完成：' + count + ' 筆');
+      alert('匯入完成');
     }catch(err){ alert('匯入失敗：'+err.message); }
     finally{ e.target.value=''; showLoading(false); }
   });
@@ -679,7 +694,7 @@
     (async ()=>{
       try{
         showLoading(true);
-        entries = await listEntries({ limit: INITIAL_LIMIT });
+        entries = await listEntries({ limit: INITIAL_LIMIT }); // 先抓 500 筆
         loadedAll = false;
         $('#loadHint').style.display = 'block';
         render();
@@ -699,6 +714,3 @@
 </script>
 </body>
 </html>
-
-
-
