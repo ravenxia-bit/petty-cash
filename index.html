@@ -200,7 +200,7 @@
     </div>
   </div>
 
-  <!-- 登入 Modal -->
+  <!-- 登入 Modal（前端示範） -->
   <div class="modal login" id="loginModal" aria-hidden="true">
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <header><h2 id="loginTitle" style="font-size:16px;margin:0">登入系統</h2></header>
@@ -230,7 +230,7 @@
   /* ===== 後端 API（GAS）設定 ===== */
   const API_URL = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec';
   const API_SECRET = 'jb7pRkuXUxPSL9B';
-  const INITIAL_LIMIT = 300;
+  const INITIAL_LIMIT = 300; // 首屏只抓最近 300 筆，速度更快
 
   /* ===== 本機快取 key ===== */
   const LS_CACHE = 'pettyCashCache.v1';
@@ -273,6 +273,7 @@
   let role = localStorage.getItem(LS_ROLE) || '';
   let loadedAll = false;
 
+  // 基礎分類（後端白名單也要一致；admin 會在表單上動態加「差額調整」）
   const INCOME_CATS  = ['零用金','其他'];
   const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','廣弘','咖啡','牛奶','五金','補POS','其他'];
 
@@ -305,13 +306,45 @@
   const dashedToYmd = d => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.replaceAll('-','') : '');
 
   /* ===== 分類 & 備註規則 ===== */
+  // admin 登入時，新增/編輯表單的分類會多一個「差額調整」
   function populateCategoryForForm(type, keepVal){
+    const base = (type==='income') ? INCOME_CATS : EXPENSE_CATS;
+    const list = (role==='admin')
+      ? Array.from(new Set([...base, '差額調整']))
+      : base.slice();
+
     const sel = $('#fCategory');
-    const list = (type==='income') ? INCOME_CATS : EXPENSE_CATS;
     sel.innerHTML = list.map(c=>`<option>${c}</option>`).join('');
-    if(keepVal && !list.includes(keepVal)){ sel.innerHTML = `<option>${keepVal}</option>` + sel.innerHTML; }
-    sel.value = keepVal && (list.includes(keepVal)) ? keepVal : list[0];
+    if(keepVal && !list.includes(keepVal)){
+      sel.innerHTML = `<option>${keepVal}</option>` + sel.innerHTML;
+    }
+    sel.value = keepVal && (list.includes(keepVal)) ? keepVal : sel.options[0].value;
   }
+
+  // 篩選器：只有 admin 會在下拉中看到「差額調整」
+  function populateFilterCategories(typeVal, keepVal){
+    let catsIncome  = INCOME_CATS.slice();
+    let catsExpense = EXPENSE_CATS.slice();
+    if (role === 'admin') {
+      if (!catsIncome.includes('差額調整'))  catsIncome.push('差額調整');
+      if (!catsExpense.includes('差額調整')) catsExpense.push('差額調整');
+    }
+
+    const sel = $('#categoryFilter');
+    let html = '<option value="">全部分類</option>';
+    if (typeVal === 'income'){
+      html += catsIncome.map(c=>`<option>${c}</option>`).join('');
+    } else if (typeVal === 'expense'){
+      html += catsExpense.map(c=>`<option>${c}</option>`).join('');
+    } else {
+      html += `<optgroup label="收入">${catsIncome.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
+      html += `<optgroup label="支出">${catsExpense.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
+    }
+    sel.innerHTML = html;
+    if (keepVal) sel.value = keepVal;
+  }
+
+  // 備註必填：只有選「其他」才強制必填；「差額調整」不強制
   function applyNoteRequired(){
     const type = $('#fType').value;
     const cat = $('#fCategory').value;
@@ -327,20 +360,6 @@
   }
 
   /* ===== 篩選 ===== */
-  function populateFilterCategories(typeVal, keepVal){
-    const sel = $('#categoryFilter');
-    let html = '<option value="">全部分類</option>';
-    if (typeVal === 'income'){
-      html += INCOME_CATS.map(c=>`<option>${c}</option>`).join('');
-    } else if (typeVal === 'expense'){
-      html += EXPENSE_CATS.map(c=>`<option>${c}</option>`).join('');
-    } else {
-      html += `<optgroup label="收入">${INCOME_CATS.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
-      html += `<optgroup label="支出">${EXPENSE_CATS.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
-    }
-    sel.innerHTML = html;
-    if (keepVal) sel.value = keepVal;
-  }
   function applyFilters(list){
     const exactText = $('#dateExact').value.trim();
     const exact = ymdToDashed(exactText);
@@ -424,7 +443,7 @@
     }
   }
 
-  /* ===== 登入 ===== */
+  /* ===== 登入（示範） ===== */
   const ADMIN_PASS = 'ssY@94540923';
   function openLogin(){ const m = $('#loginModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false'); $('#adminForm').style.display='none'; }
   function closeLogin(){ const m = $('#loginModal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); $('#adminPwd').value=''; }
@@ -439,12 +458,20 @@
       const ok = ($('#adminPwd').value === ADMIN_PASS);
       if(!ok){ alert('密碼錯誤'); return; }
       setRole('admin'); closeLogin();
+      // 切到 admin 後，若表單打開要重新套分類
+      if(document.getElementById('entryModal').classList.contains('show')){
+        populateCategoryForForm($('#fType').value, $('#fCategory').value);
+        applyNoteRequired();
+      }
+      // 篩選器也補上「差額調整」
+      populateFilterCategories($('#typeFilter').value, $('#categoryFilter').value);
     }else{
       setRole('guest'); closeLogin();
+      populateFilterCategories($('#typeFilter').value, $('#categoryFilter').value);
     }
   });
 
-  /* ===== 新增/編輯 ===== */
+  /* ===== 新增/編輯（樂觀） ===== */
   function openEntry(editItem){
     $('#entryModal').classList.add('show');
     $('#entryModal').setAttribute('aria-hidden','false');
@@ -514,6 +541,7 @@
     }
   });
 
+  /* ===== 行內金額（admin） ===== */
   document.body.addEventListener('change', async (e)=>{
     const el = e.target;
     if(el.matches('[data-amt]')){
@@ -530,6 +558,7 @@
     }
   });
 
+  /* ===== 列表上的編輯/刪除 ===== */
   document.body.addEventListener('click', async (e)=>{
     const btn = e.target.closest('button[data-act]');
     if(!btn) return;
@@ -610,7 +639,7 @@
 
   /* ===== 啟動（快取先畫面；背景更新） ===== */
   function boot(){
-    // 註冊 Service Worker（快取 API 回應）
+    // 註冊 Service Worker（快取 API 回應）；同層需有 sw.js
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(console.error);
     }
@@ -628,13 +657,12 @@
         $('#loadHint').style.display = cached.limit ? 'block' : 'none';
         render();
       } else {
-        // 沒快取也先畫空殼，避免白屏
         entries = [];
         render();
       }
     }catch{}
 
-    // 2) 背景更新（不蓋遮罩）
+    // 2) 背景更新
     (async ()=>{
       try{
         const fresh = await listEntries({ limit: INITIAL_LIMIT });
@@ -643,7 +671,6 @@
         $('#loadHint').style.display = 'block';
         render(); saveCache();
       }catch(err){
-        // 靜默失敗；保持快取畫面
         console.warn('listEntries failed:', err);
       }
     })();
@@ -655,6 +682,13 @@
     window.addEventListener('orientationchange', render);
   }
   boot();
+
+  /* ===== 重要：後端也要允許「差額調整」 =====
+     Apps Script 常數：
+     const INCOME_CATS  = ['零用金','其他','差額調整'];
+     const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','廣弘','咖啡','牛奶','五金','補POS','其他','差額調整'];
+     const ALLOWED_CATS = new Set([...INCOME_CATS, ...EXPENSE_CATS]);
+  */
 </script>
 </body>
 </html>
