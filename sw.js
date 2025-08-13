@@ -1,6 +1,6 @@
 // sw.js
 const CACHE_NAME = 'petty-cash-v1';
-const API_PREFIX = 'https://script.google.com/macros/s/AKfycbwKrXfh6ms7EG3c-GNf71DRMzNhcCAhRrhsazWk0RWenVlxG_IGzNyxJOLztALSXvVG/exec';
+const API_PREFIX = 'https://pcash.ravenxia1205-801.workers.dev';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
