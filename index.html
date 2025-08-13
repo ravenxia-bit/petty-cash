@@ -245,26 +245,25 @@
     }).then(r => r.json());
 
   /* ===== API 函式 ===== */
-  async function listEntries(params = {}){
-    const qs = new URLSearchParams({ action:'list', ...params });
-    const res = await fetch(API_URL + '?' + qs.toString(), { method:'GET' });
-    const json = await res.json();
-    if(!json.ok) throw new Error(json.error || 'list failed');
-    return json.rows || [];
-  }
   async function addEntry(row){
-    const json = await postForm({ secret: API_SECRET, action:'add', row });
-    if(!json.ok) throw new Error(json.error || 'add failed');
-    return json.id;
-  }
-  async function updateEntry(id, patch){
-    const json = await postForm({ secret: API_SECRET, action:'update', id, patch });
-    if(!json.ok) throw new Error(json.error || 'update failed');
-  }
-  async function deleteEntry(id){
-    const json = await postForm({ secret: API_SECRET, action:'delete', id });
-    if(!json.ok) throw new Error(json.error || 'delete failed');
-  }
+  const json = await postForm({ action:'add', row });
+  if(!json.ok) throw new Error(json.error || 'add failed');
+  return json.id;
+}
+async function updateEntry(id, patch){
+  const json = await postForm({ action:'update', id, patch });
+  if(!json.ok) throw new Error(json.error || 'update failed');
+}
+async function deleteEntry(id){
+  const json = await postForm({ action:'delete', id });
+  if(!json.ok) throw new Error(json.error || 'delete failed');
+}
+async function bulkAddEntries(rows){
+  const json = await postForm({ action:'bulk_add', rows });
+  if(!json.ok) throw new Error(json.error || 'bulk_add failed');
+  return json.count;
+}
+
 
   /* ===== 狀態 ===== */
   let entries = [];
@@ -691,5 +690,6 @@
 </script>
 </body>
 </html>
+
 
 
