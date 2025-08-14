@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>零用金明細（含分頁）</title>
+<title>零用金明細</title>
 <style>
   :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --line:#1f2937 }
   *{ box-sizing:border-box }
@@ -44,7 +44,7 @@
 <div class="wrap">
   <h1>零用金明細</h1>
 
-  <!-- 你的篩選區（若已在別處，這塊可刪） -->
+  <!-- 篩選區 -->
   <div class="card" style="margin-bottom:12px">
     <div style="display:flex;flex-wrap:wrap;gap:10px">
       <label>類型
@@ -141,7 +141,7 @@
   };
   window.calcSummary = window.calcSummary || function(_filtered){ /* 這裡留給你原本的小計邏輯 */ };
 
-  // 產生桌面列（若你已經有 rowToHTML，就會用你的）
+  // 產生桌面列
   window.rowToHTML = window.rowToHTML || function(r){
     const esc = (s)=> String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
     return `
@@ -154,7 +154,7 @@
       </tr>
     `;
   };
-  // 產生卡片（若你已經有 rowToCard，就會用你的）
+  // 產生卡片
   window.rowToCard = window.rowToCard || function(r){
     const esc = (s)=> String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
     return `
@@ -241,13 +241,13 @@
     }
   }
 
-  // 你的「主渲染」：<< 這段是重點，已改成含分頁 >>
+  // 主渲染
   function render(){
     // 1) 依日期降冪
     const sorted = sortByDateDesc(window.entries || []);
-    // 2) 套用你原本的篩選
+    // 2) 篩選
     const filtered = applyFilters(sorted);
-    // 3) 小計/彙總（保留你的邏輯）
+    // 3) 小計/彙總
     calcSummary(filtered);
     // 4) 分頁
     const meta = paginate(filtered, CURRENT_PAGE, PAGE_SIZE);
@@ -314,7 +314,7 @@
     });
   })();
 
-  // ====== Demo：載入幾筆假資料（正式環境可移除，改用你原本的載入 entries 流程） ======
+  // ====== Demo：載入幾筆假資料 ======
   if (!window.entries || window.entries.length === 0){
     const today = new Date();
     const iso = (d)=> d.toISOString().slice(0,10);
@@ -337,8 +337,9 @@
   // 首次渲染
   render();
 
-  // ====== 導出給你在「新增成功」後呼叫：回到第一頁再重繪 ======
+  // ====== 導出在「新增成功」後呼叫：回到第一頁再重繪 ======
   window.goFirstPage = function(){ CURRENT_PAGE = 1; render(); };
 </script>
 </body>
 </html>
+
