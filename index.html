@@ -351,6 +351,25 @@ function setRole(next){
   render();
 }
 
+function getCurrentMonthRange(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1; // 1~12
+  const pad = n => String(n).padStart(2,'0');
+  const start = `${y}-${pad(m)}-01`;
+  const lastDay = new Date(y, m, 0).getDate(); // 當月最後一天
+  const end = `${y}-${pad(m)}-${pad(lastDay)}`;
+  return { start, end };
+}
+
+function isNoQuery(){
+  return !$('#dateStart').value.trim() &&
+         !$('#dateEnd').value.trim() &&
+         !$('#typeFilter').value &&
+         !$('#categoryFilter').value &&
+         !$('#kw').value.trim();
+}
+
 // YYYYMMDD <-> YYYY-MM-DD
 function ymdToDashed(yyyymmdd){
   if(!/^\d{8}$/.test(yyyymmdd)) return '';
@@ -482,31 +501,36 @@ function render(){
   const sorted = entries.slice().sort((a,b)=> b.date.localeCompare(a.date));
   const filtered = applyFilters(sorted);
 
-  // 分頁
+  // ★ 無條件時只統計「本月」
+  let forSummary = filtered;
+  if (isNoQuery()) {
+    const { start, end } = getCurrentMonthRange();
+    forSummary = filtered.filter(x => x.date >= start && x.date <= end);
+  }
+  calcSummary(forSummary);
+
   const total = filtered.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (currentPage > pages) currentPage = pages;
   if (currentPage < 1) currentPage = 1;
-  const start = (currentPage - 1) * pageSize;
-  const pageRows = filtered.slice(start, start + pageSize);
-
-  calcSummary(filtered);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(startIdx, startIdx + pageSize);
 
   const tbody = $('#tbody'), list = $('#list'), empty = $('#empty');
-  if(total===0){
+  if(pageRows.length===0){
     tbody.innerHTML=''; list.innerHTML=''; empty.style.display='block';
     list.style.display = isMobile()? 'grid' : 'none';
-    renderPager(0,1);
-    return;
-  } else { empty.style.display='none'; }
-
-  if(isMobile()){
-    list.style.display='grid'; tbody.innerHTML=''; list.innerHTML = pageRows.map(rowToCard).join('');
-  }else{
-    list.style.display='none'; tbody.innerHTML = pageRows.map(rowToHTML).join('');
+  } else {
+    empty.style.display='none';
+    if(isMobile()){ list.style.display='grid'; tbody.innerHTML=''; list.innerHTML = pageRows.map(rowToCard).join(''); }
+    else { list.style.display='none'; tbody.innerHTML = pageRows.map(rowToHTML).join(''); }
   }
-  renderPager(total, pages);
+
+  $('#totalInfo').textContent = `共 ${total} 筆`;
+  $('#pageInput').value = String(currentPage);
+  $('#pageTotal').textContent = `/ ${pages}`;
 }
+
 
 /* ====== 登入 ====== */
 const ADMIN_PASS = 'ssY@94540923';
