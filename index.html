@@ -477,13 +477,14 @@
       editingId = editItem.id;
       t.value = editItem.type;
       populateCategoryForForm(t.value, editItem.category);
-      d.value = editItem.date; n.value = editItem.note||''; a.value = editItem.amount;
+      d.value = editItem.date;fDateFallback.value = d.value; n.value = editItem.note||''; a.value = editItem.amount;
     }else{
       $('#dlgTitle').textContent = '新增紀錄';
       editingId = null;
       t.value = 'expense';
       populateCategoryForForm('expense', null);
       d.value = todayStr();
+      fDateFallback.value = d.value;
       n.value = ''; a.value = '';
     }
     applyNoteRequired();
@@ -606,6 +607,36 @@
     render();
   });
 
+  /* ====== 新增/編輯表單：日期選擇器 ====== */
+const fDate = document.getElementById('fDate');
+const fDateFallback = document.getElementById('fDateFallback');
+const openFDateBtn = document.getElementById('openFDateCal');
+
+// 按 📅 叫出原生日曆；不支援 showPicker 就用 focus/click；再不行用隱藏的 fallback
+if (openFDateBtn && fDate) {
+  openFDateBtn.addEventListener('click', () => {
+    if (typeof fDate.showPicker === 'function') {
+      fDate.showPicker();
+      return;
+    }
+    try { fDate.focus(); fDate.click(); } catch (_) {}
+    if (fDateFallback) {
+      try {
+        if (typeof fDateFallback.showPicker === 'function') fDateFallback.showPicker();
+        else { fDateFallback.focus(); fDateFallback.click(); }
+      } catch (_) {}
+    }
+  });
+}
+
+// 用 fallback 選到日期時，回填到真正欄位
+if (fDateFallback) {
+  fDateFallback.addEventListener('change', () => {
+    if (fDateFallback.value) fDate.value = fDateFallback.value;
+  });
+}
+
+
   /* ====== 匯出（admin） ====== */
   $('#exportBtn').addEventListener('click', async ()=>{
     if (role !== 'admin') { alert('只有管理者可匯出'); return; }
@@ -711,3 +742,4 @@
 </script>
 </body>
 </html>
+
