@@ -22,7 +22,7 @@ button:hover{border-color:#244b63}
 .btn-ghost{background:transparent}
 .muted{color:var(--muted);font-size:13px}
 .role-badge{padding:4px 8px;border-radius:999px;border:1px solid #0e3b52;background:#072133}
-.inline-field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline-field{display:flex;gap:6px;align-items:center}
 .calendar-btn{padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b2133;cursor:pointer}
 .calendar-btn:hover{border-color:#244b63}
 .invalid{border-color:var(--danger)!important; outline: none}
@@ -37,12 +37,11 @@ button:hover{border-color:#244b63}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 .toolbar input,.toolbar select{background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px}
 
-/* 手機/桌機日期區間排版 */
-.date-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.date-group{display:grid;grid-template-columns:auto minmax(160px,1fr) auto;gap:8px;align-items:center}
-.date-group label{white-space:nowrap}
-.tilde{white-space:nowrap}
-.tilde-mobile{display:none}
+/* 日期區間群組 */
+.range-group{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.range-row{display:flex;flex-direction:column;gap:6px}
+.range-row .lbl{font-size:12px;color:var(--muted)}
+.range-tilde{align-self:flex-end;color:var(--muted);padding:0 4px;margin-bottom:10px}
 
 .table-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 table{width:100%;border-collapse:collapse;min-width:760px}
@@ -56,14 +55,19 @@ tr:hover td{background:#0a1422}
 .disabled{opacity:.5;pointer-events:none}
 .amt-input{width:100%; background:#0b1220;border:1px solid var(--line);color:var(--text);padding:8px;border-radius:10px}
 
+/* 分頁列 */
+.pager{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px;color:var(--muted)}
+.pager .strong{color:var(--text);font-weight:600}
+.pager input[type="number"], .pager select{background:#0b1220;border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:8px;width:auto}
+.pager button{padding:8px 10px}
+
 .table-scroller{overflow:auto}
 @media (max-width: 720px){
   .summary{grid-template-columns:1fr}
   .toolbar{flex-direction:column}
-  .date-row{display:grid;gap:8px}
-  .date-group{grid-template-columns:auto 1fr auto}
-  .tilde{display:none}
-  .tilde-mobile{display:inline}
+  .range-group{flex-direction:column;align-items:stretch}
+  .range-tilde{display:none}
+  .range-row.end .lbl::before{content:"~ ";color:var(--muted)}
   .table-wrap{border:none;background:transparent}
   table{display:none}
   .list{display:grid;gap:10px}
@@ -122,21 +126,33 @@ input[type="text"], input[type="number"], input[type="date"], select{
 </section>
 <p class="muted hint" id="loadHint" style="display:none">目前僅載入最近資料。若需完整統計，請點右上角「載入全部」。</p>
 
-<!-- 篩選：手機兩行（各自有📅），桌機同排 -->
+<!-- ===== 篩選工具列（日期區間 + 查詢鈕） ===== -->
 <section class="toolbar">
-  <div class="date-row">
-    <div class="date-group">
-      <label class="muted" for="dateFrom">起始日期</label>
-      <input type="date" id="dateFrom" />
-      <button id="openFromCal" class="calendar-btn" type="button" title="開啟起始日曆">📅</button>
-      <input type="date" id="dateFromFallback" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+  <div class="range-group">
+    <div class="range-row start">
+      <label class="lbl">起始日期</label>
+      <div class="inline-field">
+        <input type="text" id="dateStart" placeholder="YYYYMMDD"
+          inputmode="numeric" pattern="\d{8}" maxlength="8"
+          title="輸入 8 碼日期或用右側日曆" />
+        <button id="openCalStart" class="calendar-btn" title="開啟日曆">📅</button>
+        <input type="date" id="dateStartPicker"
+          style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+      </div>
     </div>
-    <span class="tilde muted">~</span>
-    <div class="date-group">
-      <label class="muted" for="dateTo"><span class="tilde-mobile">~ </span>結束日期</label>
-      <input type="date" id="dateTo" />
-      <button id="openToCal" class="calendar-btn" type="button" title="開啟結束日曆">📅</button>
-      <input type="date" id="dateToFallback" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+
+    <span class="range-tilde">~</span>
+
+    <div class="range-row end">
+      <label class="lbl">結束日期</label>
+      <div class="inline-field">
+        <input type="text" id="dateEnd" placeholder="YYYYMMDD"
+          inputmode="numeric" pattern="\d{8}" maxlength="8"
+          title="輸入 8 碼日期或用右側日曆" />
+        <button id="openCalEnd" class="calendar-btn" title="開啟日曆">📅</button>
+        <input type="date" id="dateEndPicker"
+          style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+      </div>
     </div>
   </div>
 
@@ -148,8 +164,9 @@ input[type="text"], input[type="number"], input[type="date"], select{
   <select id="categoryFilter"></select>
 
   <input type="text" id="kw" placeholder="搜尋備註關鍵字…" />
-  <button id="applyFilters" class="btn-ghost">依條件搜尋</button>
-  <button id="clearFilters" class="btn-ghost">清除篩選</button>
+
+  <button id="doSearch" class="btn-primary">查詢</button>
+  <button id="clearFilters" class="btn-ghost">清除</button>
 </section>
 
 <section class="table-wrap">
@@ -171,6 +188,23 @@ input[type="text"], input[type="number"], input[type="date"], select{
   <div class="list" id="list"></div>
   <div class="empty" id="empty" style="display:none">目前沒有紀錄</div>
 </section>
+
+<!-- 分頁列 -->
+<div class="pager" id="pager" style="display:none">
+  <span>總筆數：<span id="totalCount" class="strong">0</span></span>
+  <span>｜ 每頁</span>
+  <select id="pageSize">
+    <option value="10" selected>10</option>
+    <option value="20">20</option>
+    <option value="50">50</option>
+    <option value="100">100</option>
+  </select>
+  <span>筆</span>
+  <button id="prevPage" class="btn-ghost" title="上一頁">‹</button>
+  <input id="pageInput" type="number" min="1" value="1" style="width:72px" />
+  <span id="pageInfo">/ 1</span>
+  <button id="nextPage" class="btn-ghost" title="下一頁">›</button>
+</div>
 </div>
 
 <!-- 新增/編輯 Modal -->
@@ -184,7 +218,8 @@ input[type="text"], input[type="number"], input[type="date"], select{
           <div class="inline-field">
             <input id="fDate" type="date" required />
             <button id="openFDateCal" class="calendar-btn" type="button" title="開啟日曆">📅</button>
-            <input id="fDateFallback" type="date" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+            <input id="fDateFallback" type="date"
+              style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
           </div>
         </div>
         <div class="form-row">
@@ -245,28 +280,43 @@ input[type="text"], input[type="number"], input[type="date"], select{
 <div class="loading" id="loading"><div class="card">資料處理中，請稍候…</div></div>
 
 <script>
-/* ====== API 連線（Cloudflare Worker） ====== */
+/* ====== 連線設定 ====== */
 const API_URL = 'https://pcash.ravenxia1205-801.workers.dev';
 const INITIAL_LIMIT = 300;
 const LS_CACHE = 'pettyCashCache.v1';
 const LS_ROLE  = 'pettyCashRole.v1';
 
+/* ====== 免預檢 POST ====== */
 const POST_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
-const postForm = (payload)=>
-  fetch(API_URL, { method:'POST', headers:POST_HEADERS, body:new URLSearchParams({ json: JSON.stringify(payload) }) })
-  .then(async r => { const j = await r.json().catch(()=>({ok:false,error:'bad json'})); return j; });
+const postForm = (payload) =>
+  fetch(API_URL, {
+    method: 'POST',
+    headers: POST_HEADERS,
+    body: new URLSearchParams({ json: JSON.stringify(payload) })
+  }).then(async r => { try { return await r.json(); } catch { return { ok:false, error:'bad json' }; } });
 
-async function listEntries(params={}) {
-  const qs = new URLSearchParams({ action:'list', ...params });
-  const res = await fetch(API_URL + '?' + qs.toString(), { method:'GET' }).catch(err=>{ throw new Error('network'); });
-  if(!res) throw new Error('network');
+/* ====== API ====== */
+async function listEntries(params = {}) {
+  const qs = new URLSearchParams({ action: 'list', ...params });
+  const res = await fetch(API_URL + '?' + qs.toString(), { method: 'GET' }).catch(()=>null);
+  if (!res) throw new Error('network');
   const json = await res.json().catch(()=>({ok:false,error:'bad json'}));
-  if(!json.ok) throw new Error(json.error||'list failed');
-  return json.rows||[];
+  if (!json.ok) throw new Error(json.error || 'list failed');
+  return json.rows || [];
 }
-async function addEntry(row){ const j=await postForm({action:'add',row}); if(!j.ok) throw new Error(j.error||'add failed'); return j.id; }
-async function updateEntry(id,patch){ const j=await postForm({action:'update',id,patch}); if(!j.ok) throw new Error(j.error||'update failed'); }
-async function deleteEntry(id){ const j=await postForm({action:'delete',id}); if(!j.ok) throw new Error(j.error||'delete failed'); }
+async function addEntry(row) {
+  const json = await postForm({ action: 'add', row });
+  if (!json.ok) throw new Error(json.error || 'add failed');
+  return json.id;
+}
+async function updateEntry(id, patch) {
+  const json = await postForm({ action: 'update', id, patch });
+  if (!json.ok) throw new Error(json.error || 'update failed');
+}
+async function deleteEntry(id) {
+  const json = await postForm({ action: 'delete', id });
+  if (!json.ok) throw new Error(json.error || 'delete failed');
+}
 
 /* ====== 狀態 ====== */
 let entries = [];
@@ -274,98 +324,116 @@ let editingId = null;
 let role = localStorage.getItem(LS_ROLE) || '';
 let loadedAll = false;
 
-/* ====== 分類 ====== */
+/* 分頁狀態 */
+let pageSize = 10;
+let currentPage = 1;
+
+/* 分類（admin 表單多「差額調整」） */
 const INCOME_CATS  = ['零用金','其他'];
-const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','豆漿','鼎宇','廣弘','咖啡','牛奶','五金','靜電機保養','補POS','其他'];
+const EXPENSE_CATS = ['雞蛋','蔬果','冰壞','豆漿','鼎宇','廣弘','咖啡','牛奶','五金','靜電機保養','補POS','其他'];
 
 /* ====== Helpers ====== */
 const $ = s => document.querySelector(s);
 const isMobile = () => matchMedia('(max-width:720px)').matches;
-const fmtMoney = n => (n||0).toLocaleString('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtMoney = n => (n||0).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2});
 const todayStr = () => new Date().toISOString().slice(0,10);
 const showLoading = on => $('#loading').classList.toggle('show', !!on);
-const saveCache = () => localStorage.setItem(LS_CACHE, JSON.stringify({ ts:Date.now(), rows:entries, limit:loadedAll?0:INITIAL_LIMIT }));
+const saveCache = () => localStorage.setItem(LS_CACHE, JSON.stringify({ ts: Date.now(), rows: entries, limit: loadedAll?0:INITIAL_LIMIT }));
 
 function setRole(next){
   role = next; localStorage.setItem(LS_ROLE, role);
-  $('#roleBadge').textContent = role ? (role==='admin'?'管理者':'訪客') : '未登入';
+  $('#roleBadge').textContent = role ? (role==='admin' ? '管理者' : '訪客') : '未登入';
   $('#logoutBtn').style.display = role ? '' : 'none';
-  const showDataIO = (role==='admin');
+  const showDataIO = (role === 'admin');
   $('#exportBtn').style.display = showDataIO ? '' : 'none';
   $('#importWrap').style.display = showDataIO ? '' : 'none';
   populateFilterCategories($('#typeFilter').value, $('#categoryFilter').value);
   render();
 }
 
-/* ====== 分類/備註規則 ====== */
+// YYYYMMDD <-> YYYY-MM-DD
+function ymdToDashed(yyyymmdd){
+  if(!/^\d{8}$/.test(yyyymmdd)) return '';
+  const y = yyyymmdd.slice(0,4), m = yyyymmdd.slice(4,6), d = yyyymmdd.slice(6,8);
+  const mm = Number(m), dd = Number(d);
+  if(mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+  return `${y}-${m}-${d}`;
+}
+const dashedToYmd = d => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.replaceAll('-','') : '');
+
+/* ====== 分類 & 備註規則 ====== */
 function populateCategoryForForm(type, keepVal){
   const base = (type==='income') ? INCOME_CATS : EXPENSE_CATS;
-  const list = (role==='admin') ? Array.from(new Set([...base,'差額調整'])) : base.slice();
+  const list = (role==='admin') ? Array.from(new Set([...base, '差額調整'])) : base.slice();
   const sel = $('#fCategory');
   sel.innerHTML = list.map(c=>`<option>${c}</option>`).join('');
-  if(keepVal && !list.includes(keepVal)) sel.innerHTML = `<option>${keepVal}</option>` + sel.innerHTML;
-  sel.value = keepVal && list.includes(keepVal) ? keepVal : sel.options[0].value;
+  if(keepVal && !list.includes(keepVal)){ sel.innerHTML = `<option>${keepVal}</option>` + sel.innerHTML; }
+  sel.value = keepVal && (list.includes(keepVal)) ? keepVal : sel.options[0].value;
 }
 function populateFilterCategories(typeVal, keepVal){
-  let catsIncome = INCOME_CATS.slice();
-  let catsExpense= EXPENSE_CATS.slice();
-  if(role==='admin'){
-    if(!catsIncome.includes('差額調整'))  catsIncome.push('差額調整');
-    if(!catsExpense.includes('差額調整')) catsExpense.push('差額調整');
+  let catsIncome  = INCOME_CATS.slice();
+  let catsExpense = EXPENSE_CATS.slice();
+  if (role === 'admin') {
+    if (!catsIncome.includes('差額調整'))  catsIncome.push('差額調整');
+    if (!catsExpense.includes('差額調整')) catsExpense.push('差額調整');
   }
   const sel = $('#categoryFilter');
   let html = '<option value="">全部分類</option>';
-  if(typeVal==='income') html += catsIncome.map(c=>`<option>${c}</option>`).join('');
-  else if(typeVal==='expense') html += catsExpense.map(c=>`<option>${c}</option>`).join('');
-  else {
+  if (typeVal === 'income'){
+    html += catsIncome.map(c=>`<option>${c}</option>`).join('');
+  } else if (typeVal === 'expense'){
+    html += catsExpense.map(c=>`<option>${c}</option>`).join('');
+  } else {
     html += `<optgroup label="收入">${catsIncome.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
     html += `<optgroup label="支出">${catsExpense.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
   }
   sel.innerHTML = html;
-  if(keepVal) sel.value = keepVal;
+  if (keepVal) sel.value = keepVal;
 }
 function applyNoteRequired(){
   const type = $('#fType').value;
-  const cat  = $('#fCategory').value;
+  const cat = $('#fCategory').value;
   const note = $('#fNote');
-  const label= $('#noteLabel');
+  const label = $('#noteLabel');
   const hint = $('#noteHint');
-  const required = (cat==='其他');
+  const required = (cat === '其他');
   note.required = required;
   label.classList.toggle('req', required);
   hint.textContent = required
-    ? (type==='income'?'收入／其他：備註必填':'支出／其他：備註必填')
-    : (type==='income'?'收入／零用金：備註可留白':'支出／非「其他」：備註可留白');
+    ? (type==='income' ? '收入／其他：備註必填' : '支出／其他：備註必填')
+    : (type==='income' ? '收入／零用金：備註可留白' : '支出／非「其他」：備註可留白');
 }
 
 /* ====== 篩選（日期區間） ====== */
 function applyFilters(list){
-  const from = $('#dateFrom').value || '';
-  const to   = $('#dateTo').value   || '';
-  const typ  = $('#typeFilter').value;
-  const cat  = $('#categoryFilter').value;
-  const kw   = $('#kw').value.trim();
+  const sText = $('#dateStart').value.trim();
+  const eText = $('#dateEnd').value.trim();
+  const s = ymdToDashed(sText);
+  const e = ymdToDashed(eText);
+  const typ = $('#typeFilter').value;
+  const cat = $('#categoryFilter').value;
+  const kw  = $('#kw').value.trim();
   return list.filter(x=>{
-    if(from && x.date < from) return false;
-    if(to   && x.date > to)   return false;
+    if(s && x.date < s) return false;
+    if(e && x.date > e) return false;
     if(typ && x.type !== typ) return false;
     if(cat && x.category !== cat) return false;
-    if(kw  && !(x.note||'').includes(kw)) return false;
+    if(kw && !(x.note||'').includes(kw)) return false;
     return true;
   });
 }
 
-/* ====== 渲染 ====== */
+/* ====== 渲染 + 分頁 ====== */
 function calcSummary(list){
-  const sumIn  = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  const sumOut = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+  const sumIn = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+  const sumOut= list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
   $('#sumIn').textContent = fmtMoney(sumIn);
   $('#sumOut').textContent = fmtMoney(sumOut);
-  $('#balance').textContent= fmtMoney(sumIn - sumOut);
+  $('#balance').textContent = fmtMoney(sumIn - sumOut);
 }
 function rowToHTML(item){
   const moneyClass = item.type==='income'?'in':'out';
-  const disableActions = (role!=='admin');
+  const disableActions = (role !== 'admin');
   const amountCell = role==='admin'
     ? `<input class="amt-input" type="number" min="0" step="0.01" value="${item.amount}" data-amt="1" />`
     : `<span class="money ${moneyClass}">${fmtMoney(item.amount)}</span>`;
@@ -384,7 +452,7 @@ function rowToHTML(item){
 }
 function rowToCard(item){
   const moneyClass = item.type==='income'?'in':'out';
-  const disableActions = (role!=='admin');
+  const disableActions = (role !== 'admin');
   const amountBlock = role==='admin'
     ? `<input class="amt-input" type="number" min="0" step="0.01" value="${item.amount}" data-amt="1" />`
     : `<div class="money ${moneyClass}">${fmtMoney(item.amount)}</div>`;
@@ -404,27 +472,46 @@ function rowToCard(item){
       </div>
     </div>`;
 }
+function renderPager(total, pages){
+  $('#totalCount').textContent = total;
+  $('#pageInfo').textContent = `/ ${pages || 1}`;
+  $('#pageInput').value = currentPage;
+  $('#pager').style.display = total ? '' : 'none';
+}
 function render(){
   const sorted = entries.slice().sort((a,b)=> b.date.localeCompare(a.date));
   const filtered = applyFilters(sorted);
+
+  // 分頁
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (currentPage > pages) currentPage = pages;
+  if (currentPage < 1) currentPage = 1;
+  const start = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(start, start + pageSize);
+
   calcSummary(filtered);
-  const tbody=$('#tbody'), list=$('#list'), empty=$('#empty');
-  if(filtered.length===0){
+
+  const tbody = $('#tbody'), list = $('#list'), empty = $('#empty');
+  if(total===0){
     tbody.innerHTML=''; list.innerHTML=''; empty.style.display='block';
     list.style.display = isMobile()? 'grid' : 'none';
+    renderPager(0,1);
     return;
   } else { empty.style.display='none'; }
+
   if(isMobile()){
-    list.style.display='grid'; tbody.innerHTML=''; list.innerHTML = filtered.map(rowToCard).join('');
+    list.style.display='grid'; tbody.innerHTML=''; list.innerHTML = pageRows.map(rowToCard).join('');
   }else{
-    list.style.display='none'; tbody.innerHTML = filtered.map(rowToHTML).join('');
+    list.style.display='none'; tbody.innerHTML = pageRows.map(rowToHTML).join('');
   }
+  renderPager(total, pages);
 }
 
 /* ====== 登入 ====== */
 const ADMIN_PASS = 'ssY@94540923';
-function openLogin(){ const m=$('#loginModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false'); $('#adminForm').style.display='none'; }
-function closeLogin(){ const m=$('#loginModal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); $('#adminPwd').value=''; }
+function openLogin(){ const m = $('#loginModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false'); $('#adminForm').style.display='none'; }
+function closeLogin(){ const m = $('#loginModal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); $('#adminPwd').value=''; }
 $('#loginBtn').addEventListener('click', openLogin);
 $('#logoutBtn').addEventListener('click', ()=>{ setRole(''); openLogin(); });
 $('#asGuest').addEventListener('click', ()=>{ $('#adminForm').style.display='none'; setRole('guest'); closeLogin(); });
@@ -432,220 +519,275 @@ $('#asAdmin').addEventListener('click', ()=>{ $('#adminForm').style.display='gri
 $('#loginCancel').addEventListener('click', closeLogin);
 $('#loginOk').addEventListener('click', ()=>{
   if($('#adminForm').style.display!=='none'){
-    const ok = ($('#adminPwd').value===ADMIN_PASS);
+    const ok = ($('#adminPwd').value === ADMIN_PASS);
     if(!ok){ alert('密碼錯誤'); return; }
     setRole('admin'); closeLogin();
     if(document.getElementById('entryModal').classList.contains('show')){
       populateCategoryForForm($('#fType').value, $('#fCategory').value);
       applyNoteRequired();
     }
-  }else{ setRole('guest'); closeLogin(); }
+  }else{
+    setRole('guest'); closeLogin();
+  }
 });
 
 /* ====== 新增/編輯 ====== */
 function openEntry(editItem){
   $('#entryModal').classList.add('show');
   $('#entryModal').setAttribute('aria-hidden','false');
-  const d=$('#fDate'), t=$('#fType'), n=$('#fNote'), a=$('#fAmount');
+
+  const d = $('#fDate'), t = $('#fType'), n = $('#fNote'), a = $('#fAmount');
   if(editItem){
-    $('#dlgTitle').textContent='編輯紀錄';
-    editingId=editItem.id;
-    t.value=editItem.type;
+    $('#dlgTitle').textContent = '編輯紀錄';
+    editingId = editItem.id;
+    t.value = editItem.type;
     populateCategoryForForm(t.value, editItem.category);
-    d.value=editItem.date; fDateFallback.value=d.value; n.value=editItem.note||''; a.value=editItem.amount;
+    d.value = editItem.date;
+    $('#fDateFallback').value = d.value;
+    n.value = editItem.note||'';
+    a.value = editItem.amount;
   }else{
-    $('#dlgTitle').textContent='新增紀錄';
-    editingId=null;
-    t.value='expense';
+    $('#dlgTitle').textContent = '新增紀錄';
+    editingId = null;
+    t.value = 'expense';
     populateCategoryForForm('expense', null);
-    d.value=todayStr(); fDateFallback.value=d.value;
-    n.value=''; a.value='';
+    d.value = todayStr();
+    $('#fDateFallback').value = d.value;
+    n.value = '';
+    a.value = '';
   }
   applyNoteRequired();
-  setTimeout(()=>$('#fDate').focus(),0);
+  setTimeout(()=>$('#fDate').focus(), 0);
 }
 function closeEntry(){ $('#entryModal').classList.remove('show'); $('#entryModal').setAttribute('aria-hidden','true'); }
+
 $('#addBtn').addEventListener('click', ()=> openEntry(null));
 $('#cancelBtn').addEventListener('click', closeEntry);
 $('#fType').addEventListener('change', ()=>{ populateCategoryForForm($('#fType').value, null); applyNoteRequired(); });
 $('#fCategory').addEventListener('change', applyNoteRequired);
 
 $('#saveBtn').addEventListener('click', async ()=>{
-  const date=$('#fDate').value, type=$('#fType').value, category=$('#fCategory').value;
-  const note=$('#fNote').value.trim(); const amount=parseFloat($('#fAmount').value);
+  const date = $('#fDate').value;
+  const type = $('#fType').value;
+  const category = $('#fCategory').value;
+  const note = $('#fNote').value.trim();
+  const amount = parseFloat($('#fAmount').value);
   if(!date) return alert('請選擇日期');
   if(!type) return alert('請選擇類型');
   if(!category) return alert('請選擇分類');
-  if(category==='其他' && !note) return alert('此分類需填寫備註');
+  if(category === '其他' && !note) return alert('此分類需填寫備註');
   if(!(amount>=0)) return alert('請輸入正確金額');
 
   if(editingId){
-    if(role!=='admin'){ alert('訪客模式不可編輯'); return; }
-    const idx=entries.findIndex(x=>x.id===editingId);
-    const backup=idx>-1?{...entries[idx]}:null;
-    if(idx>-1){ entries[idx]={...entries[idx], date, type, category, note, amount}; render(); saveCache(); }
+    if(role !== 'admin'){ alert('訪客模式不可編輯'); return; }
+    const idx = entries.findIndex(x=>x.id===editingId);
+    const backup = idx>-1 ? {...entries[idx]} : null;
+    if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount }; render(); saveCache(); }
     closeEntry();
-    try{ await updateEntry(editingId,{date,type,category,note,amount}); }
-    catch(e){ if(backup){ entries[idx]=backup; render(); saveCache(); } alert('更新失敗：'+e.message); }
+    try{ await updateEntry(editingId, { date, type, category, note, amount }); }
+    catch(e){ if(backup){ entries[idx]=backup; render(); saveCache(); } alert('更新失敗：' + e.message); }
     return;
   }
 
-  const tempId='tmp-'+Math.random().toString(36).slice(2);
-  const temp={id:tempId,date,type,category,note,amount};
+  // 樂觀新增
+  const tempId = 'tmp-' + Math.random().toString(36).slice(2);
+  const temp = { id: tempId, date, type, category, note, amount };
   entries.unshift(temp); render(); saveCache(); closeEntry();
   try{
-    const realId=await addEntry({date,type,category,note,amount});
-    const i=entries.findIndex(x=>x.id===tempId);
-    if(i>-1) entries[i].id=realId;
+    const realId = await addEntry({ date, type, category, note, amount });
+    const i = entries.findIndex(x => x.id === tempId);
+    if (i > -1) entries[i].id = realId;
     render(); saveCache();
   }catch(err){
-    const i=entries.findIndex(x=>x.id===tempId);
-    if(i>-1) entries.splice(i,1);
+    const i = entries.findIndex(x => x.id === tempId);
+    if (i > -1) entries.splice(i, 1);
     render(); saveCache();
-    alert('新增失敗：'+err.message);
+    alert('新增失敗：' + err.message);
   }
 });
 
-/* ====== 行內金額（admin） ====== */
+/* 行內金額（admin） */
 document.body.addEventListener('change', async (e)=>{
-  const el=e.target;
+  const el = e.target;
   if(el.matches('[data-amt]')){
-    if(role!=='admin') return;
-    const host=el.closest('[data-id]'); if(!host) return;
-    const id=host.getAttribute('data-id');
-    const val=parseFloat(el.value); if(isNaN(val)) return;
-    const idx=entries.findIndex(x=>x.id===id);
-    const backup=idx>-1?entries[idx].amount:null;
-    if(idx>-1){ entries[idx].amount=val; render(); saveCache(); }
-    try{ await updateEntry(id,{amount:val}); }
-    catch(err){ if(idx>-1){ entries[idx].amount=backup; render(); saveCache(); } alert('更新失敗：'+err.message); }
+    if(role!=='admin'){ return; }
+    const host = el.closest('[data-id]'); if(!host) return;
+    const id = host.getAttribute('data-id');
+    const val = parseFloat(el.value);
+    if(isNaN(val)) return;
+    const idx = entries.findIndex(x=>x.id===id);
+    const backup = idx>-1 ? entries[idx].amount : null;
+    if(idx>-1){ entries[idx].amount = val; render(); saveCache(); }
+    try{ await updateEntry(id, { amount: val }); }
+    catch(err){ if(idx>-1){ entries[idx].amount = backup; render(); saveCache(); } alert('更新失敗：' + err.message); }
   }
 });
 
-/* ====== 列表上的編輯/刪除 ====== */
+/* 列表上的編輯/刪除 */
 document.body.addEventListener('click', async (e)=>{
-  const btn=e.target.closest('button[data-act]'); if(!btn) return;
-  const act=btn.dataset.act; const host=btn.closest('[data-id]'); if(!host) return;
-  const id=host.getAttribute('data-id'); const item=entries.find(x=>x.id===id); if(!item) return;
+  const btn = e.target.closest('button[data-act]');
+  if(!btn) return;
+  const act = btn.dataset.act;
+  const host = btn.closest('[data-id]');
+  if(!host) return;
+  const id = host.getAttribute('data-id');
+  const item = entries.find(x=>x.id===id);
+  if(!item) return;
+
   if(act==='edit'){
     if(role!=='admin'){ alert('訪客模式不可編輯'); return; }
     openEntry(item);
   }else if(act==='del'){
     if(role!=='admin'){ alert('訪客模式不可刪除'); return; }
     if(!confirm('確認刪除這筆紀錄？')) return;
-    const idx=entries.findIndex(x=>x.id===id);
-    const backup=idx>-1?entries[idx]:null;
+    const idx = entries.findIndex(x=>x.id===id);
+    const backup = idx>-1 ? entries[idx] : null;
     if(idx>-1){ entries.splice(idx,1); render(); saveCache(); }
     try{ await deleteEntry(id); }
-    catch(err){ if(backup){ entries.splice(idx,0,backup); render(); saveCache(); } alert('刪除失敗：'+err.message); }
+    catch(err){ if(backup){ entries.splice(idx,0,backup); render(); saveCache(); } alert('刪除失敗：' + err.message); }
   }
 });
 
-/* ====== 篩選控制 ====== */
-$('#applyFilters').addEventListener('click', ()=>{
-  const from=$('#dateFrom').value, to=$('#dateTo').value;
-  if(from && to && from>to){ alert('起始日期不可晚於結束日期'); return; }
-  render();
-});
+/* ====== 日期區間：文字 + 日曆 ====== */
+function bindDatePair(txtId, pickerId, btnId){
+  const txt = $(txtId), picker = $(pickerId), btn = $(btnId);
+  if (!txt || !picker || !btn) return;
+  btn.addEventListener('click', ()=>{
+    if(typeof picker.showPicker === 'function') picker.showPicker();
+    else { picker.focus(); picker.click(); }
+  });
+  picker.addEventListener('change', ()=>{
+    const ymd = dashedToYmd(picker.value);
+    txt.value = ymd;
+    txt.classList.remove('invalid');
+    // 按查詢或即時渲染都可
+    render();
+  });
+  txt.addEventListener('input', ()=>{
+    const digits = txt.value.replace(/\D/g,'').slice(0,8);
+    if(txt.value !== digits) txt.value = digits;
+    if(digits.length === 0){ txt.classList.remove('invalid'); picker.value=''; }
+    else if(digits.length === 8 && ymdToDashed(digits)){ txt.classList.remove('invalid'); picker.value = ymdToDashed(digits); }
+    else { txt.classList.add('invalid'); picker.value=''; }
+    render();
+  });
+}
+bindDatePair('#dateStart','#dateStartPicker','#openCalStart');
+bindDatePair('#dateEnd','#dateEndPicker','#openCalEnd');
+
+/* ====== 其餘篩選事件 ====== */
 $('#typeFilter').addEventListener('input', ()=>{
-  const prev=$('#categoryFilter').value;
+  const prev = $('#categoryFilter').value;
   populateFilterCategories($('#typeFilter').value, prev);
+  currentPage = 1; render();
 });
-['categoryFilter','kw'].forEach(id=> $('#'+id).addEventListener('input', ()=>{}));
+['categoryFilter','kw'].forEach(id=> $('#'+id).addEventListener('input', ()=>{ currentPage=1; render(); }));
+$('#doSearch').addEventListener('click', ()=>{ currentPage=1; render(); });
 $('#clearFilters').addEventListener('click', ()=>{
-  $('#dateFrom').value=''; $('#dateTo').value='';
-  $('#typeFilter').value=''; populateFilterCategories('', '');
-  $('#kw').value=''; render();
+  ['dateStart','dateEnd'].forEach(id=>{ const t=$('#'+id); t.value=''; t.classList.remove('invalid'); });
+  ['dateStartPicker','dateEndPicker'].forEach(id=> $('#'+id).value='');
+  $('#typeFilter').value='';
+  populateFilterCategories('', '');
+  $('#kw').value='';
+  currentPage=1; render();
 });
 
-/* ====== 日期下拉（toolbar 的雙日曆） ====== */
-const fromEl=$('#dateFrom'), toEl=$('#dateTo');
-const fromFb=$('#dateFromFallback'), toFb=$('#dateToFallback');
-$('#openFromCal').addEventListener('click', ()=>{
-  if(typeof fromEl.showPicker==='function'){ fromEl.showPicker(); return; }
-  try{ fromEl.focus(); fromEl.click(); }catch(_){}
-  try{ if(typeof fromFb.showPicker==='function') fromFb.showPicker(); else { fromFb.focus(); fromFb.click(); } }catch(_){}
+/* ====== 分頁控制 ====== */
+$('#pageSize').addEventListener('change', ()=>{
+  pageSize = parseInt($('#pageSize').value,10) || 10;
+  currentPage = 1;
+  render();
 });
-$('#openToCal').addEventListener('click', ()=>{
-  if(typeof toEl.showPicker==='function'){ toEl.showPicker(); return; }
-  try{ toEl.focus(); toEl.click(); }catch(_){}
-  try{ if(typeof toFb.showPicker==='function') toFb.showPicker(); else { toFb.focus(); toFb.click(); } }catch(_){}
+$('#pageInput').addEventListener('change', ()=>{
+  const total = applyFilters(entries.slice().sort((a,b)=> b.date.localeCompare(a.date))).length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  let p = parseInt($('#pageInput').value,10);
+  if(isNaN(p) || p<1) p = 1;
+  if(p>pages) p = pages;
+  currentPage = p;
+  render();
 });
-fromFb.addEventListener('change', ()=>{ if(fromFb.value) fromEl.value=fromFb.value; });
-toFb.addEventListener('change',   ()=>{ if(toFb.value)   toEl.value=toFb.value; });
+$('#prevPage').addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); }});
+$('#nextPage').addEventListener('click', ()=>{
+  const total = applyFilters(entries.slice().sort((a,b)=> b.date.localeCompare(a.date))).length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if(currentPage<pages){ currentPage++; render(); }
+});
 
 /* ====== 匯出 / 匯入 / 載入全部 ====== */
 $('#exportBtn').addEventListener('click', async ()=>{
-  if(role!=='admin'){ alert('只有管理者可匯出'); return; }
+  if (role !== 'admin') { alert('只有管理者可匯出'); return; }
   try{
-    const all=await listEntries();
-    const blob=new Blob([JSON.stringify(all,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='petty-cash.json'; a.click();
+    const all = await listEntries();
+    const blob = new Blob([JSON.stringify(all,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'petty-cash.json'; a.click();
     URL.revokeObjectURL(url);
-  }catch(err){ alert('匯出失敗：'+err.message); }
+  }catch(err){ alert('匯出失敗：' + err.message); }
 });
 $('#importInput').addEventListener('change', async (e)=>{
-  if(role!=='admin'){ alert('只有管理者可匯入'); e.target.value=''; return; }
-  const file=e.target.files[0]; if(!file) return;
+  if (role !== 'admin') { alert('只有管理者可匯入'); e.target.value=''; return; }
+  const file = e.target.files[0]; if(!file) return;
   try{
     showLoading(true);
-    const text=await file.text();
-    const data=JSON.parse(text);
+    const text = await file.text();
+    const data = JSON.parse(text);
     if(!Array.isArray(data)) throw new Error('格式不正確，需為陣列');
-    for(const r0 of data){
-      const r={date:r0.date,type:r0.type,category:r0.category,note:r0.note||'',amount:Number(r0.amount)||0};
-      const id=await addEntry(r);
-      entries.unshift({id,...r});
+    for (const r0 of data){
+      const r = { date: r0.date, type: r0.type, category: r0.category, note: r0.note || '', amount: Number(r0.amount)||0 };
+      const id = await addEntry(r);
+      entries.unshift({ id, ...r });
     }
-    render(); saveCache(); alert('匯入完成');
+    render(); saveCache();
+    alert('匯入完成');
   }catch(err){ alert('匯入失敗：'+err.message); }
   finally{ e.target.value=''; showLoading(false); }
 });
 $('#loadAllBtn').addEventListener('click', async ()=>{
-  if(loadedAll) return;
+  if (loadedAll) return;
   try{
     showLoading(true);
-    const all=await listEntries();
-    entries=all; loadedAll=true;
-    $('#loadHint').style.display='none';
+    const all = await listEntries();
+    entries = all;
+    loadedAll = true;
+    $('#loadHint').style.display = 'none';
+    currentPage = 1;
     render(); saveCache();
-  }catch(err){ alert('載入全部失敗：'+err.message); }
+  }catch(err){ alert('載入全部失敗：' + err.message); }
   finally{ showLoading(false); }
 });
 
 /* ====== 啟動 ====== */
 function boot(){
-  // 若你沒有 sw.js，可註解掉下一行
-  if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
-
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
   populateFilterCategories('', '');
-  setRole(role||'');
+  setRole(role || '');
   if(!role) openLogin();
 
-  // 1) 先畫快取
+  // 快取先畫面
   try{
-    const cached=JSON.parse(localStorage.getItem(LS_CACHE)||'null');
-    if(cached && Array.isArray(cached.rows) && cached.rows.length){
-      entries=cached.rows;
+    const cached = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
+    if (cached && Array.isArray(cached.rows) && cached.rows.length) {
+      entries = cached.rows;
       loadedAll = (cached.limit ? false : true);
       $('#loadHint').style.display = cached.limit ? 'block' : 'none';
       render();
-    }else{
-      entries=[]; render();
-    }
-  }catch(_){ entries=[]; render(); }
+    } else { entries = []; render(); }
+  }catch{ entries=[]; render(); }
 
-  // 2) 背景抓最新
+  // 背景更新（預設取 300 筆）
   (async ()=>{
     try{
-      const fresh=await listEntries({limit:INITIAL_LIMIT});
-      entries=fresh; loadedAll=false;
-      $('#loadHint').style.display='block';
+      const fresh = await listEntries({ limit: INITIAL_LIMIT });
+      entries = fresh;
+      loadedAll = false;
+      $('#loadHint').style.display = 'block';
+      currentPage = 1;
       render(); saveCache();
     }catch(err){
       console.warn('listEntries failed:', err);
-      // 提示用戶
       if(!entries.length){
         $('#empty').style.display='block';
         $('#empty').textContent='讀取失敗，請稍後重試';
@@ -654,9 +796,9 @@ function boot(){
   })();
 
   // RWD 重繪
-  const mq=window.matchMedia('(max-width:720px)');
-  (mq.addEventListener?mq.addEventListener('change',render):mq.addListener(render));
-  let _rszTimer; window.addEventListener('resize',()=>{ clearTimeout(_rszTimer); _rszTimer=setTimeout(render,120); });
+  const mq = window.matchMedia('(max-width:720px)');
+  (mq.addEventListener ? mq.addEventListener('change', render) : mq.addListener(render));
+  let _rszTimer; window.addEventListener('resize', ()=>{ clearTimeout(_rszTimer); _rszTimer = setTimeout(render, 120); });
   window.addEventListener('orientationchange', render);
 }
 document.addEventListener('DOMContentLoaded', boot);
