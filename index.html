@@ -78,9 +78,16 @@ tr:hover td{background:#0a1422}
   .row-actions{display:flex;gap:8px;justify-content:flex-end}
 }
 
-.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,20,.6);padding:16px;z-index:40}
-.modal.show{display:flex}
-.dialog{width:100%;max-width:600px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+/* ===== Modal ===== */
+.modal{
+  position:fixed !important; inset:0 !important;
+  display:none !important;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,.55); padding:16px;
+  z-index:10000 !important;
+}
+.modal.show{ display:flex !important; }
+.dialog{ width:100%; max-width:600px; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
 .dialog header{padding:14px 16px;border-bottom:1px solid var(--line)}
 .dialog .body{padding:16px;display:grid;gap:12px}
 .dialog footer{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
@@ -91,13 +98,11 @@ input[type="text"], input[type="number"], input[type="date"], select{
   background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px;width:100%
 }
 .req::after{content:"*";color:var(--danger);margin-left:4px}
-
 .login .dialog{max-width:460px}
-.login h3{margin:0 0 6px;font-size:18px}
-.login .role-cta{display:flex;gap:8px;flex-wrap:wrap}
 .warn{font-size:12px;color:#eab308}
 
-.loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:50}
+/* loading */
+.loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:12000}
 .loading.show{display:flex}
 </style>
 </head>
@@ -107,12 +112,12 @@ input[type="text"], input[type="number"], input[type="date"], select{
   <h1>簡易零用金系統</h1>
   <div class="actions">
     <span id="roleBadge" class="role-badge muted">未登入</span>
-    <button id="loginBtn" class="btn">登入 / 切換</button>
-    <button id="logoutBtn" class="btn-ghost" style="display:none">登出</button>
+    <button id="loginBtn" class="btn" type="button">登入 / 切換</button>
+    <button id="logoutBtn" class="btn-ghost" type="button" style="display:none">登出</button>
     <span class="muted">|</span>
-    <button id="addBtn" class="btn-primary">＋ 新增紀錄</button>
-    <button id="loadAllBtn" class="btn-ghost" title="載入所有資料（可能較慢）">載入全部</button>
-    <button id="exportBtn" class="btn">匯出 JSON</button>
+    <button id="addBtn" class="btn-primary" type="button">＋ 新增紀錄</button>
+    <button id="loadAllBtn" class="btn-ghost" type="button" title="載入所有資料（可能較慢）">載入全部</button>
+    <button id="exportBtn" class="btn" type="button">匯出 JSON</button>
     <label id="importWrap" class="btn-ghost" style="border:1px dashed var(--line);padding:8px 12px;border-radius:10px;cursor:pointer">
       匯入 JSON <input id="importInput" type="file" accept="application/json" style="display:none">
     </label>
@@ -132,12 +137,9 @@ input[type="text"], input[type="number"], input[type="date"], select{
     <div class="range-row start">
       <label class="lbl">起始日期</label>
       <div class="inline-field">
-        <input type="text" id="dateStart" placeholder="YYYYMMDD"
-          inputmode="numeric" pattern="\d{8}" maxlength="8"
-          title="輸入 8 碼日期或用右側日曆" />
-        <button id="openCalStart" class="calendar-btn" title="開啟日曆">📅</button>
-        <input type="date" id="dateStartPicker"
-          style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+        <input type="text" id="dateStart" placeholder="YYYYMMDD" inputmode="numeric" pattern="\d{8}" maxlength="8" title="輸入 8 碼日期或用右側日曆" />
+        <button id="openCalStart" class="calendar-btn" type="button" title="開啟日曆">📅</button>
+        <input type="date" id="dateStartPicker" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
       </div>
     </div>
 
@@ -146,12 +148,9 @@ input[type="text"], input[type="number"], input[type="date"], select{
     <div class="range-row end">
       <label class="lbl">結束日期</label>
       <div class="inline-field">
-        <input type="text" id="dateEnd" placeholder="YYYYMMDD"
-          inputmode="numeric" pattern="\d{8}" maxlength="8"
-          title="輸入 8 碼日期或用右側日曆" />
-        <button id="openCalEnd" class="calendar-btn" title="開啟日曆">📅</button>
-        <input type="date" id="dateEndPicker"
-          style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+        <input type="text" id="dateEnd" placeholder="YYYYMMDD" inputmode="numeric" pattern="\d{8}" maxlength="8" title="輸入 8 碼日期或用右側日曆" />
+        <button id="openCalEnd" class="calendar-btn" type="button" title="開啟日曆">📅</button>
+        <input type="date" id="dateEndPicker" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
       </div>
     </div>
   </div>
@@ -165,8 +164,8 @@ input[type="text"], input[type="number"], input[type="date"], select{
 
   <input type="text" id="kw" placeholder="搜尋備註關鍵字…" />
 
-  <button id="doSearch" class="btn-primary">查詢</button>
-  <button id="clearFilters" class="btn-ghost">清除</button>
+  <button id="doSearch" class="btn-primary" type="button">查詢</button>
+  <button id="clearFilters" class="btn-ghost" type="button">清除</button>
 </section>
 
 <section class="table-wrap">
@@ -200,10 +199,10 @@ input[type="text"], input[type="number"], input[type="date"], select{
     <option value="100">100</option>
   </select>
   <span>筆</span>
-  <button id="prevPage" class="btn-ghost" title="上一頁">‹</button>
+  <button id="prevPage" class="btn-ghost" type="button" title="上一頁">‹</button>
   <input id="pageInput" type="number" min="1" value="1" style="width:72px" />
   <span id="pageInfo">/ 1</span>
-  <button id="nextPage" class="btn-ghost" title="下一頁">›</button>
+  <button id="nextPage" class="btn-ghost" type="button" title="下一頁">›</button>
 </div>
 </div>
 
@@ -218,8 +217,7 @@ input[type="text"], input[type="number"], input[type="date"], select{
           <div class="inline-field">
             <input id="fDate" type="date" required />
             <button id="openFDateCal" class="calendar-btn" type="button" title="開啟日曆">📅</button>
-            <input id="fDateFallback" type="date"
-              style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+            <input id="fDateFallback" type="date" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
           </div>
         </div>
         <div class="form-row">
@@ -247,8 +245,8 @@ input[type="text"], input[type="number"], input[type="date"], select{
       </div>
     </div>
     <footer>
-      <button class="btn-ghost" id="cancelBtn">取消</button>
-      <button class="btn-primary" id="saveBtn">儲存</button>
+      <button class="btn-ghost" id="cancelBtn" type="button">取消</button>
+      <button class="btn-primary" id="saveBtn" type="button">儲存</button>
     </footer>
   </div>
 </div>
@@ -261,8 +259,8 @@ input[type="text"], input[type="number"], input[type="date"], select{
       <div class="form-row">
         <h3>選擇角色</h3>
         <div class="role-cta">
-          <button id="asGuest" class="btn">以訪客進入（可新增；不可編輯/刪除）</button>
-          <button id="asAdmin" class="btn-primary">管理者登入</button>
+          <button id="asGuest" class="btn" type="button">以訪客進入（可新增；不可編輯/刪除）</button>
+          <button id="asAdmin" class="btn-primary" type="button">管理者登入</button>
         </div>
       </div>
       <div id="adminForm" class="form-row" style="display:none">
@@ -271,8 +269,8 @@ input[type="text"], input[type="number"], input[type="date"], select{
       </div>
     </div>
     <footer>
-      <button class="btn-ghost" id="loginCancel">關閉</button>
-      <button class="btn-primary" id="loginOk">確認</button>
+      <button class="btn-ghost" id="loginCancel" type="button">關閉</button>
+      <button class="btn-primary" id="loginOk" type="button">確認</button>
     </footer>
   </div>
 </div>
@@ -338,7 +336,17 @@ const EXPENSE_CATS = ['雞蛋','蔬果','冰壞','豆漿','鼎宇','廣弘','咖
 const $ = s => document.querySelector(s);
 const isMobile = () => matchMedia('(max-width:720px)').matches;
 const fmtMoney = n => (n||0).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2});
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  // 以 Asia/Taipei 取今天的 YYYY-MM-DD（避免 UTC 跨日）
+  try{
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit'
+    }).format(new Date());
+  }catch(_){
+    const dt=new Date(); const p=n=>String(n).padStart(2,'0');
+    return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
+  }
+};
 const showLoading = on => $('#loading').classList.toggle('show', !!on);
 const saveCache = () => localStorage.setItem(LS_CACHE, JSON.stringify({ ts: Date.now(), rows: entries, limit: loadedAll?0:INITIAL_LIMIT }));
 
@@ -425,7 +433,7 @@ function applyNoteRequired(){
     : (type==='income' ? '收入／零用金：備註可留白' : '支出／非「其他」：備註可留白');
 }
 
-/* ====== 篩選（日期區間） ====== */
+/* ====== 前端即時篩選（字串比較用 YYYY-MM-DD） ====== */
 function applyFilters(list){
   const sText = $('#dateStart').value.trim();
   const eText = $('#dateEnd').value.trim();
@@ -493,17 +501,11 @@ function rowToCard(item){
       </div>
     </div>`;
 }
-function renderPager(total, pages){
-  $('#totalCount').textContent = total;
-  $('#pageInfo').textContent = `/ ${pages || 1}`;
-  $('#pageInput').value = currentPage;
-  $('#pager').style.display = total ? '' : 'none';
-}
 function render(){
   const sorted = entries.slice().sort((a,b)=> b.date.localeCompare(a.date));
   const filtered = applyFilters(sorted);
 
-  // ★ 無條件時只統計「本月」
+  // 無條件時只統計「本月」
   let forSummary = filtered;
   if (isNoQuery()) {
     const { start, end } = getCurrentMonthRange();
@@ -528,21 +530,35 @@ function render(){
     else { list.style.display='none'; tbody.innerHTML = pageRows.map(rowToHTML).join(''); }
   }
 
-  // === 這裡改成對齊你現在的分頁 DOM ===
   const pager = $('#pager');
   if (pager) pager.style.display = total ? '' : 'none';
-
-  const totalCountEl = $('#totalCount');
-  if (totalCountEl) totalCountEl.textContent = String(total);
-
-  const pageInfoEl = $('#pageInfo');
-  if (pageInfoEl) pageInfoEl.textContent = `/ ${pages}`;
-
-  const pageInputEl = $('#pageInput');
-  if (pageInputEl) pageInputEl.value = String(currentPage);
+  $('#totalCount').textContent = String(total);
+  $('#pageInfo').textContent = `/ ${pages}`;
+  $('#pageInput').value = String(currentPage);
 }
 
+/* ====== 後端查詢（避免日期格式不一） ====== */
+async function performSearch(){
+  const sText = $('#dateStart').value.trim();
+  const eText = $('#dateEnd').value.trim();
+  const start = ymdToDashed(sText);   // 統一成 YYYY-MM-DD
+  const end   = ymdToDashed(eText);
+  const type = $('#typeFilter').value;
+  const category = $('#categoryFilter').value;
+  const kw  = $('#kw').value.trim();
 
+  showLoading(true);
+  try {
+    const rows = await listEntries({ start, end, type, category, kw });
+    entries = rows; loadedAll = true; currentPage = 1;
+    $('#loadHint').style.display = 'none';
+    render(); saveCache();
+  } catch (err) {
+    alert('查詢失敗：' + err.message);
+  } finally {
+    showLoading(false);
+  }
+}
 
 /* ====== 登入（穩定關閉版） ====== */
 const ADMIN_PASS = 'ssY@94540923';
@@ -553,26 +569,19 @@ function openLogin(){
   pendingRole = '';
   document.getElementById('adminForm').style.display = 'none';
   document.getElementById('adminPwd').value = '';
-  m.style.display = '';                // 先清掉 inline
-  m.classList.add('show');             // 套用顯示
+  m.style.display = '';                // 清掉 inline
+  m.classList.add('show');             // 顯示
   m.setAttribute('aria-hidden','false');
 }
 function closeLogin(){
   const m = document.getElementById('loginModal');
-  m.classList.remove('show');          // 拔掉顯示用 class
+  m.classList.remove('show');
   m.setAttribute('aria-hidden','true');
-  m.style.display = 'none';            // 強制隱藏（避免任何覆蓋）
+  m.style.display = 'none';            // 強制隱藏
   document.getElementById('adminPwd').value = '';
   pendingRole = '';
-  // 避免焦點還留在被關閉的對話框裡
   if (document.activeElement) document.activeElement.blur();
 }
-
-// 相關按鈕一律當一般按鈕，避免 submit
-['loginBtn','logoutBtn','asGuest','asAdmin','loginCancel','loginOk'].forEach(id=>{
-  const el = document.getElementById(id);
-  if (el) el.setAttribute('type','button');
-});
 
 document.getElementById('loginBtn').addEventListener('click', (e)=>{ e.preventDefault(); openLogin(); });
 document.getElementById('logoutBtn').addEventListener('click', (e)=>{ e.preventDefault(); setRole(''); openLogin(); });
@@ -585,18 +594,15 @@ document.getElementById('asGuest').addEventListener('click', (e)=>{
   setRole('guest');
   closeLogin();
 });
-
-// 管理者：展開密碼欄，等按確認
+// 管理者：展開密碼欄
 document.getElementById('asAdmin').addEventListener('click', (e)=>{
   e.preventDefault();
   pendingRole = 'admin';
   document.getElementById('adminForm').style.display = 'grid';
   document.getElementById('adminPwd').focus();
 });
-
 document.getElementById('loginCancel').addEventListener('click', (e)=>{ e.preventDefault(); closeLogin(); });
-
-// 確認：依 pendingRole 處理，未選視為訪客
+// 確認
 document.getElementById('loginOk').addEventListener('click', (e)=>{
   e.preventDefault();
   if (pendingRole === 'admin'){
@@ -607,31 +613,22 @@ document.getElementById('loginOk').addEventListener('click', (e)=>{
     setRole('guest');
   }
   closeLogin();
-  // 若新增/編輯視窗已開，更新一次分類與備註規則
   if (document.getElementById('entryModal').classList.contains('show')){
     populateCategoryForForm(document.getElementById('fType').value, document.getElementById('fCategory').value);
     applyNoteRequired();
   }
 });
-
-// 點遮罩關閉（點到外層才關）
-document.getElementById('loginModal').addEventListener('click', (e)=>{
-  if (e.target === e.currentTarget) closeLogin();
-});
-
-// Esc 關閉
-document.addEventListener('keydown', (e)=>{
-  if (e.key === 'Escape' && document.getElementById('loginModal').classList.contains('show')){
-    closeLogin();
-  }
-});
-
-
+// 點遮罩關閉
+document.getElementById('loginModal').addEventListener('click', (e)=>{ if (e.target === e.currentTarget) closeLogin(); });
+// Esc 關
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && document.getElementById('loginModal').classList.contains('show')) closeLogin(); });
 
 /* ====== 新增/編輯 ====== */
 function openEntry(editItem){
-  $('#entryModal').classList.add('show');
-  $('#entryModal').setAttribute('aria-hidden','false');
+  const modal = $('#entryModal');
+  modal.style.display = '';
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden','false');
 
   const d = $('#fDate'), t = $('#fType'), n = $('#fNote'), a = $('#fAmount');
   if(editItem){
@@ -648,20 +645,35 @@ function openEntry(editItem){
     editingId = null;
     t.value = 'expense';
     populateCategoryForForm('expense', null);
-    d.value = todayStr();
-    $('#fDateFallback').value = d.value;
+    const today = todayStr();          // Asia/Taipei 的今天
+    d.value = today;
+    $('#fDateFallback').value = today;
     n.value = '';
     a.value = '';
   }
   applyNoteRequired();
   setTimeout(()=>$('#fDate').focus(), 0);
 }
-function closeEntry(){ $('#entryModal').classList.remove('show'); $('#entryModal').setAttribute('aria-hidden','true'); }
+function closeEntry(){
+  const m = $('#entryModal');
+  m.classList.remove('show');
+  m.setAttribute('aria-hidden','true');
+  m.style.display = 'none';
+}
 
 $('#addBtn').addEventListener('click', ()=> openEntry(null));
 $('#cancelBtn').addEventListener('click', closeEntry);
 $('#fType').addEventListener('change', ()=>{ populateCategoryForForm($('#fType').value, null); applyNoteRequired(); });
 $('#fCategory').addEventListener('change', applyNoteRequired);
+
+// 新增紀錄日曆按鈕：支援 showPicker 與 fallback
+document.getElementById('openFDateCal').addEventListener('click', ()=>{
+  const d = document.getElementById('fDate');
+  const fb = document.getElementById('fDateFallback');
+  if (d && typeof d.showPicker === 'function') { d.showPicker(); return; }
+  try { d.focus(); d.click(); } catch(_){}
+  if (fb) { try { fb.focus(); fb.click(); } catch(_){ } }
+});
 
 $('#saveBtn').addEventListener('click', async ()=>{
   const date = $('#fDate').value;
@@ -746,18 +758,17 @@ document.body.addEventListener('click', async (e)=>{
 });
 
 /* ====== 日期區間：文字 + 日曆 ====== */
-function bindDatePair(txtId, pickerId, btnId){
-  const txt = $(txtId), picker = $(pickerId), btn = $(btnId);
+function bindDatePair(txtSel, pickerSel, btnSel){
+  const txt = $(txtSel), picker = $(pickerSel), btn = $(btnSel);
   if (!txt || !picker || !btn) return;
   btn.addEventListener('click', ()=>{
     if(typeof picker.showPicker === 'function') picker.showPicker();
-    else { picker.focus(); picker.click(); }
+    else { try{ picker.focus(); picker.click(); }catch(_){} }
   });
   picker.addEventListener('change', ()=>{
     const ymd = dashedToYmd(picker.value);
     txt.value = ymd;
     txt.classList.remove('invalid');
-    // 按查詢或即時渲染都可
     render();
   });
   txt.addEventListener('input', ()=>{
@@ -779,22 +790,31 @@ $('#typeFilter').addEventListener('input', ()=>{
   currentPage = 1; render();
 });
 ['categoryFilter','kw'].forEach(id=> $('#'+id).addEventListener('input', ()=>{ currentPage=1; render(); }));
-$('#doSearch').addEventListener('click', ()=>{ currentPage=1; render(); });
-$('#clearFilters').addEventListener('click', ()=>{
+$('#doSearch').addEventListener('click', performSearch);
+$('#clearFilters').addEventListener('click', async ()=>{
   ['dateStart','dateEnd'].forEach(id=>{ const t=$('#'+id); t.value=''; t.classList.remove('invalid'); });
   ['dateStartPicker','dateEndPicker'].forEach(id=> $('#'+id).value='');
   $('#typeFilter').value='';
   populateFilterCategories('', '');
   $('#kw').value='';
-  currentPage=1; render();
+  currentPage=1;
+
+  try{
+    showLoading(true);
+    const fresh = await listEntries({ limit: INITIAL_LIMIT });
+    entries = fresh;
+    loadedAll = false;
+    $('#loadHint').style.display = 'block';
+    render(); saveCache();
+  }catch(err){
+    render();
+  }finally{
+    showLoading(false);
+  }
 });
 
 /* ====== 分頁控制 ====== */
-$('#pageSize').addEventListener('change', ()=>{
-  pageSize = parseInt($('#pageSize').value,10) || 10;
-  currentPage = 1;
-  render();
-});
+$('#pageSize').addEventListener('change', ()=>{ pageSize = parseInt($('#pageSize').value,10) || 10; currentPage = 1; render(); });
 $('#pageInput').addEventListener('change', ()=>{
   const total = applyFilters(entries.slice().sort((a,b)=> b.date.localeCompare(a.date))).length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -856,14 +876,12 @@ $('#loadAllBtn').addEventListener('click', async ()=>{
 
 /* ====== 啟動 ====== */
 function boot(){
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
-  }
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
   populateFilterCategories('', '');
   setRole(role || '');
   if(!role) openLogin();
 
-  // 快取先畫面
+  // 先畫快取
   try{
     const cached = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
     if (cached && Array.isArray(cached.rows) && cached.rows.length) {
@@ -874,14 +892,11 @@ function boot(){
     } else { entries = []; render(); }
   }catch{ entries=[]; render(); }
 
-  // 背景更新（預設取 300 筆）
+  // 背景更新（預設 300 筆）
   (async ()=>{
     try{
       const fresh = await listEntries({ limit: INITIAL_LIMIT });
-      entries = fresh;
-      loadedAll = false;
-      $('#loadHint').style.display = 'block';
-      currentPage = 1;
+      entries = fresh; loadedAll = false; $('#loadHint').style.display = 'block'; currentPage = 1;
       render(); saveCache();
     }catch(err){
       console.warn('listEntries failed:', err);
