@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>員工打卡</title>
+<link rel="preconnect" href="https://pcash.ravenxia1205-801.workers.dev">
+<style>
+  :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --ok:#22c55e; --danger:#ef4444; --line:#1f2937 }
+  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui}
+  .wrap{max-width:560px;margin:auto;padding:20px}
+  h1{font-size:20px;margin:0 0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+  input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:var(--text)}
+  button{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);cursor:pointer;background:#0b2133;color:var(--text)}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn-ok{background:#0a2b19} .btn-ng{background:#2a0f13}
+  .muted{color:var(--muted)} .big{font-size:32px;font-weight:700}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .msg{margin-top:8px;min-height:20px}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--muted)}
+  .ok{color:var(--ok)} .err{color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>員工打卡</h1>
+
+  <!-- 登入 -->
+  <div class="card" id="loginCard">
+    <div class="row"><div><strong>登入</strong></div><div class="muted" id="loginState">未登入</div></div>
+    <div id="loginForm">
+      <label>Email</label><input id="email" type="email" placeholder="you@company.com">
+      <label style="margin-top:8px">密碼</label><input id="password" type="password" placeholder="••••••••">
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button id="btnSignIn">登入</button>
+        <button id="btnSignUp">註冊</button>
+      </div>
+    </div>
+    <div id="loginInfo" style="display:none">
+      <div class="row">
+        <div>
+          <div class="muted">目前帳號</div>
+          <div id="who"></div>
+        </div>
+        <div><button id="btnSignOut">登出</button></div>
+      </div>
+    </div>
+    <div class="msg" id="authMsg"></div>
+  </div>
+
+  <!-- 打卡 -->
+  <div class="card" id="clockCard" style="display:none">
+    <div class="row">
+      <div>
+        <div class="muted">現在時間</div>
+        <div class="big" id="now">--:--:--</div>
+      </div>
+      <div class="muted" id="today"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn-ok" id="btnIn">上班打卡</button>
+      <button class="btn-ng" id="btnOut">下班打卡</button>
+    </div>
+    <div class="msg" id="clockMsg"></div>
+
+    <div style="margin-top:12px">
+      <div class="muted">今日紀錄</div>
+      <table>
+        <thead><tr><th>時間</th><th>類型</th><th>IP</th></tr></thead>
+        <tbody id="list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>回到零用金系統</div>
+      <div><a href="./index.html" style="color:#80e2ff">開啟</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase JS -->
+<script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  // ======== 換成你的專案設定 ========
+  const API_URL = 'https://pcash.ravenxia1205-801.workers.dev'; // 你的 Worker
+  const SB_URL  = 'https://你的專案.supabase.co';                 // ← 改這裡
+  const SB_ANON = '你的 anon key';                               // ← 改這裡
+  // =================================
+
+  const supa = supabase.createClient(SB_URL, SB_ANON);
+  let session = null;
+
+  // 時鐘
+  function tick(){
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    const ss = String(d.getSeconds()).padStart(2,'0');
+    document.getElementById('now').textContent = `${hh}:${mm}:${ss}`;
+    document.getElementById('today').textContent = d.toISOString().slice(0,10);
+  }
+  setInterval(tick, 500); tick();
+
+  // 共同：帶 token 的 fetch
+  async function authedFetch(url, init={}){
+    if(!session){ const { data } = await supa.auth.getSession(); session = data.session; }
+    init.headers = init.headers || {};
+    if(session?.access_token){
+      init.headers['Authorization'] = 'Bearer ' + session.access_token;
+    }
+    return fetch(url, init);
+  }
+
+  // UI 切換
+  function setLoggedInUI(user){
+    const isOn = !!user;
+    document.getElementById('loginForm').style.display = isOn ? 'none':'block';
+    document.getElementById('loginInfo').style.display = isOn ? 'block':'none';
+    document.getElementById('clockCard').style.display = isOn ? 'block':'none';
+    document.getElementById('loginState').textContent = isOn ? '已登入' : '未登入';
+    document.getElementById('who').textContent = isOn ? `${user.email}` : '';
+  }
+
+  // 登入/註冊/登出
+  document.getElementById('btnSignIn').onclick = async ()=>{
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const { data, error } = await supa.auth.signInWithPassword({ email, password });
+    const msg = document.getElementById('authMsg');
+    if(error){ msg.textContent = error.message; msg.className='msg err'; return; }
+    session = data.session; setLoggedInUI(data.user); msg.textContent='登入成功'; msg.className='msg ok';
+    await loadToday();
+  };
+  document.getElementById('btnSignUp').onclick = async ()=>{
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const { data, error } = await supa.auth.signUp({ email, password });
+    const msg = document.getElementById('authMsg');
+    if(error){ msg.textContent = error.message; msg.className='msg err'; return; }
+    msg.textContent='註冊成功，請至信箱驗證後再登入'; msg.className='msg ok';
+  };
+  document.getElementById('btnSignOut').onclick = async ()=>{
+    await supa.auth.signOut(); session=null; setLoggedInUI(null);
+    document.getElementById('list').innerHTML=''; document.getElementById('authMsg').textContent='';
+  };
+
+  // 打卡
+  async function clock(kind){
+    const btnIn  = document.getElementById('btnIn');
+    const btnOut = document.getElementById('btnOut');
+    btnIn.disabled = btnOut.disabled = true;
+    const res = await authedFetch(API_URL + '/clock', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ kind })
+    });
+    const msg = document.getElementById('clockMsg');
+    try{
+      const j = await res.json();
+      if(!res.ok || !j.ok){
+        msg.textContent = '打卡失敗：' + (j.error || res.status);
+        msg.className = 'msg err';
+      }else{
+        msg.textContent = '打卡成功';
+        msg.className = 'msg ok';
+        await loadToday();
+      }
+    }catch(e){
+      msg.textContent = '打卡失敗：回應格式錯誤'; msg.className='msg err';
+    }
+    btnIn.disabled = btnOut.disabled = false;
+  }
+  document.getElementById('btnIn').onclick  = ()=> clock('in');
+  document.getElementById('btnOut').onclick = ()=> clock('out');
+
+  // 今日清單
+  async function loadToday(){
+    // 取今天 00:00
+    const d = new Date(); d.setHours(0,0,0,0);
+    const from = d.toISOString();
+
+    // 取得目前 session（拿 token 查 RLS）
+    if(!session){ const { data } = await supa.auth.getSession(); session = data.session; }
+    const { data, error } = await supa.from('clock_events')
+      .select('id,kind,ts,ip')
+      .gte('ts', from)
+      .order('ts', { ascending:false });
+
+    const tbody = document.getElementById('list');
+    if(error){ tbody.innerHTML = `<tr><td colspan="3" class="err">${error.message}</td></tr>`; return; }
+    if(!data || !data.length){ tbody.innerHTML = `<tr><td colspan="3" class="muted">今天尚無紀錄</td></tr>`; return; }
+
+    tbody.innerHTML = data.map(r=>{
+      const t = new Date(r.ts);
+      const hh = String(t.getHours()).padStart(2,'0');
+      const mm = String(t.getMinutes()).padStart(2,'0');
+      const ss = String(t.getSeconds()).padStart(2,'0');
+      return `<tr><td>${hh}:${mm}:${ss}</td><td>${r.kind==='in'?'上班':'下班'}</td><td>${r.ip||''}</td></tr>`;
+    }).join('');
+  }
+
+  // 啟動：恢復登入狀態
+  (async ()=>{
+    const { data } = await supa.auth.getSession();
+    session = data.session;
+    setLoggedInUI(session?.user || null);
+    if(session?.user) await loadToday();
+  })();
+</script>
+</body>
+</html>
