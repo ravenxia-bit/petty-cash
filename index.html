@@ -3,746 +3,342 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>簡易零用金系統</title>
-<!-- 建議預連線到 Worker -->
-<link rel="preconnect" href="https://pcash.ravenxia1205-801.workers.dev">
-<link rel="dns-prefetch" href="https://pcash.ravenxia1205-801.workers.dev">
+<title>零用金明細（含分頁）</title>
 <style>
-  :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
-    --acc:#22d3ee; --danger:#ef4444; --ok:#22c55e; --line:#1f2937; --chip:#0b2a33 }
-  *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
-  .wrap{max-width:1100px;margin:auto;padding:20px}
-  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-  h1{font-size:20px;margin:0}
-  .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  button,.btn{background:#0b2133;border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
-  button:hover{border-color:#244b63}
-  .btn-primary{background:#082432;border-color:#0e3b52}
-  .btn-danger{background:#2a0f13;border-color:#511b21}
-  .btn-ghost{background:transparent}
-  .muted{color:var(--muted);font-size:13px}
-  .role-badge{padding:4px 8px;border-radius:999px;border:1px solid #0e3b52;background:#072133}
-  .inline-field{display:flex;gap:6px;align-items:center}
-  .calendar-btn{padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b2133;cursor:pointer}
-  .calendar-btn:hover{border-color:#244b63}
-  .invalid{border-color:var(--danger)!important; outline: none}
-
-  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 8px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
-  .card h3{margin:0 0 4px;font-size:13px;color:var(--muted)}
-  .card .val{font-size:22px;font-weight:700}
-  .val.in{color:var(--ok)} .val.out{color:var(--danger)} .val.bal{color:var(--acc)}
-  .hint{margin:0 0 12px}
-
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-  .toolbar input,.toolbar select{background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px}
-
-  .table-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-  table{width:100%;border-collapse:collapse;min-width:760px}
-  th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
-  th{color:var(--muted);font-weight:600;background:#0c1526}
-  tr:hover td{background:#0a1422}
-  .chip{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:var(--chip);border:1px solid #103543}
-  .money.in{color:var(--ok);font-weight:700}
-  .money.out{color:var(--danger);font-weight:700}
-  .empty{padding:24px;color:var(--muted);text-align:center}
-  .disabled{opacity:.5;pointer-events:none}
-  .amt-input{width:100%; background:#0b1220;border:1px solid var(--line);color:var(--text);padding:8px;border-radius:10px}
-
-  .table-scroller{overflow:auto}
-  @media (max-width: 720px){
-    .summary{grid-template-columns:1fr}
-    .toolbar{flex-direction:column}
-    .table-wrap{border:none;background:transparent}
-    table{display:none}
-    .list{display:grid;gap:10px}
-    .row-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:8px}
-    .row-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
-    .row-mid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .row-note{color:var(--muted);font-size:13px}
-    .row-actions{display:flex;gap:8px;justify-content:flex-end}
+  :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --line:#1f2937 }
+  *{ box-sizing:border-box }
+  html,body{ margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system }
+  .wrap{ max-width:1100px; margin:auto; padding:20px }
+  h1{ margin:0 0 12px; font-size:20px }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px }
+  table{ width:100%; border-collapse:collapse }
+  th,td{ padding:10px; border-bottom:1px solid var(--line); text-align:left }
+  th{ color:var(--muted); font-weight:600 }
+  td.num{ text-align:right }
+  .muted{ color:var(--muted) }
+  /* 行動版卡片清單 */
+  #list{ display:none; gap:12px; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)) }
+  .card-item{ border:1px solid var(--line); border-radius:12px; padding:10px; background:#0b1220 }
+  .grid2{ display:grid; grid-template-columns:auto 1fr; gap:6px 10px }
+  /* 分頁列 */
+  .pager{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:10px 0; flex-wrap:wrap; border-top:1px solid var(--line); margin-top:8px;
   }
-
-  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,20,.6);padding:16px;z-index:40}
-  .modal.show{display:flex}
-  .dialog{width:100%;max-width:600px;background:var(--card);border:1px solid var(--line);border-radius:16px}
-  .dialog header{padding:14px 16px;border-bottom:1px solid var(--line)}
-  .dialog .body{padding:16px;display:grid;gap:12px}
-  .dialog footer{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
-  .form-row{display:grid;gap:8px}
-  .form-row.inline{grid-template-columns:1fr 1fr;gap:10px}
-  label{font-size:13px;color:var(--muted)}
-  input[type="text"], input[type="number"], input[type="date"], select{
-    background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px;width:100%
+  .pager-left, .pager-right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+  .pager select, .pager input[type="number"]{
+    background:#0b1220; color:#e5e7eb; border:1px solid var(--line); border-radius:8px; padding:6px 8px; width:auto;
   }
-  .req::after{content:"*";color:var(--danger);margin-left:4px}
-
-  .login .dialog{max-width:460px}
-  .login h3{margin:0 0 6px;font-size:18px}
-  .login .role-cta{display:flex;gap:8px;flex-wrap:wrap}
-  .warn{font-size:12px;color:#eab308}
-
-  .loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:50}
-  .loading.show{display:flex}
+  .pager button{
+    background:#0b2133; color:#e5e7eb; border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer;
+  }
+  .pager button:disabled{ opacity:.5; cursor:default }
+  @media (max-width:640px){
+    #list{ grid-template-columns:1fr }
+    .pager{ flex-direction:column; align-items:stretch }
+    .pager-right{ justify-content:space-between }
+  }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>簡易零用金系統</h1>
-      <div class="actions">
-        <span id="roleBadge" class="role-badge muted">未登入</span>
-        <button id="loginBtn" class="btn">登入 / 切換</button>
-        <button id="logoutBtn" class="btn-ghost" style="display:none">登出</button>
-        <span class="muted">|</span>
-        <button id="addBtn" class="btn-primary">＋ 新增紀錄</button>
-        <button id="loadAllBtn" class="btn-ghost" title="載入所有資料（可能較慢）">載入全部</button>
-        <button id="exportBtn" class="btn">匯出 JSON</button>
-        <label id="importWrap" class="btn-ghost" style="border:1px dashed var(--line);padding:8px 12px;border-radius:10px;cursor:pointer">
-          匯入 JSON <input id="importInput" type="file" accept="application/json" style="display:none">
+<div class="wrap">
+  <h1>零用金明細</h1>
+
+  <!-- 你的篩選區（若已在別處，這塊可刪） -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <label>類型
+        <select id="typeFilter">
+          <option value="">全部</option>
+          <option value="income">收入</option>
+          <option value="expense">支出</option>
+        </select>
+      </label>
+      <label>分類
+        <select id="categoryFilter">
+          <option value="">全部</option>
+          <option>雞蛋</option><option>蔬果</option><option>冰塊</option>
+          <option>豆漿</option><option>鼎宇</option>
+          <option>廣弘</option><option>咖啡</option><option>牛奶</option>
+          <option>五金</option><option>靜電機保養</option><option>補POS</option>
+          <option>其他</option><option>差額調整</option>
+          <option>零用金</option> <!-- 收入用 -->
+        </select>
+      </label>
+      <label>日期（YYYY-MM-DD）
+        <input id="dateExact" placeholder="例如 2025-08-14" />
+      </label>
+      <label>關鍵字
+        <input id="kw" placeholder="備註含…" />
+      </label>
+      <button id="clearFilters" type="button">清除篩選</button>
+    </div>
+  </div>
+
+  <!-- 桌面版表格 -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>類型</th>
+          <th>分類</th>
+          <th>備註</th>
+          <th style="text-align:right">金額</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <!-- 行動版卡片清單 -->
+    <div id="list"></div>
+
+    <!-- 空狀態 -->
+    <div id="empty" class="muted" style="display:none;padding:10px">沒有符合篩選的資料。</div>
+
+    <!-- 分頁列：放在清單表格的正下方 -->
+    <div id="pager" class="pager">
+      <div class="pager-left">
+        <label>每頁顯示
+          <select id="pageSize">
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select> 筆
         </label>
       </div>
-    </header>
-
-    <section class="summary">
-      <div class="card"><h3>總收入（目前載入）</h3><div class="val in" id="sumIn">0</div></div>
-      <div class="card"><h3>總支出（目前載入）</h3><div class="val out" id="sumOut">0</div></div>
-      <div class="card"><h3>結餘（目前載入）</h3><div class="val bal" id="balance">0</div></div>
-    </section>
-    <p class="muted hint" id="loadHint" style="display:none">目前僅載入最近資料。若需完整統計，請點右上角「載入全部」。</p>
-
-    <section class="toolbar">
-      <div class="inline-field">
-        <input type="text" id="dateExact" placeholder="YYYYMMDD"
-               inputmode="numeric" pattern="\d{8}" maxlength="8"
-               aria-describedby="dateHint" title="輸入 8 碼日期或點右側圖示開啟日曆" />
-        <button id="openCalendar" class="calendar-btn" title="開啟日曆">📅</button>
-        <input type="date" id="dateExactPicker"
-               style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+      <div class="pager-right">
+        <button id="prevPage" type="button">上一頁</button>
+        第 <input id="pageInput" type="number" min="1" value="1" style="width:72px"> /
+        <span id="pageTotal">1</span> 頁
+        <button id="nextPage" type="button">下一頁</button>
+        <span id="pageInfo" class="muted" style="margin-left:8px"></span>
       </div>
-      <div class="muted" id="dateHint">單日篩選（格式：YYYYMMDD）</div>
-
-      <select id="typeFilter">
-        <option value="">全部類型</option>
-        <option value="income">收入</option>
-        <option value="expense">支出</option>
-      </select>
-      <select id="categoryFilter"></select>
-
-      <input type="text" id="kw" placeholder="搜尋備註關鍵字…" />
-      <button id="clearFilters" class="btn-ghost">清除篩選</button>
-    </section>
-
-    <section class="table-wrap">
-      <div class="table-scroller">
-        <table id="tbl">
-          <thead>
-            <tr>
-              <th>日期</th>
-              <th>類型</th>
-              <th>分類</th>
-              <th>備註</th>
-              <th style="text-align:right">金額</th>
-              <th style="width:180px">操作</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div class="list" id="list"></div>
-      <div class="empty" id="empty" style="display:none">目前沒有紀錄</div>
-    </section>
-  </div>
-
-  <!-- 新增/編輯 Modal -->
-  <div class="modal" id="entryModal" aria-hidden="true">
-    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
-      <header><h2 id="dlgTitle" style="font-size:16px;margin:0">新增紀錄</h2></header>
-      <div class="body">
-        <div class="form-row inline">
-          <div class="form-row">
-            <label class="req">日期</label>
-            <div class="inline-field">
-              <input id="fDate" type="date" required />
-              <button id="openFDateCal" class="calendar-btn" type="button" title="開啟日曆">📅</button>
-              <input id="fDateFallback" type="date"
-                     style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="req">類型</label>
-            <select id="fType" required>
-              <option value="expense">支出</option>
-              <option value="income">收入</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row inline">
-          <div class="form-row">
-            <label class="req">分類</label>
-            <select id="fCategory" required></select>
-          </div>
-          <div class="form-row">
-            <label id="noteLabel">備註</label>
-            <input id="fNote" type="text" placeholder="例如：品項／數量…" />
-            <div class="muted" id="noteHint"></div>
-          </div>
-        </div>
-        <div class="form-row">
-          <label class="req">金額</label>
-          <input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="請輸入金額" required />
-        </div>
-      </div>
-      <footer>
-        <button class="btn-ghost" id="cancelBtn">取消</button>
-        <button class="btn-primary" id="saveBtn">儲存</button>
-      </footer>
     </div>
   </div>
-
-  <!-- 登入 Modal（前端示範） -->
-  <div class="modal login" id="loginModal" aria-hidden="true">
-    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <header><h2 id="loginTitle" style="font-size:16px;margin:0">登入系統</h2></header>
-      <div class="body">
-        <div class="form-row">
-          <h3>選擇角色</h3>
-          <div class="role-cta">
-            <button id="asGuest" class="btn">以訪客進入（可新增；不可編輯/刪除）</button>
-            <button id="asAdmin" class="btn-primary">管理者登入</button>
-          </div>
-        </div>
-        <div id="adminForm" class="form-row" style="display:none">
-          <label class="req">管理者密碼</label>
-          <input id="adminPwd" type="password" placeholder="輸入 admin 密碼" />
-        </div>
-      </div>
-      <footer>
-        <button class="btn-ghost" id="loginCancel">關閉</button>
-        <button class="btn-primary" id="loginOk">確認</button>
-      </footer>
-    </div>
-  </div>
-
-  <div class="loading" id="loading"><div class="card">資料處理中，請稍候…</div></div>
+</div>
 
 <script>
-  /* ====== 連線設定（指向 Cloudflare Worker；前端無密鑰） ====== */
-  const API_URL = 'https://pcash.ravenxia1205-801.workers.dev';
-  const INITIAL_LIMIT = 300;        // 首屏抓 300 筆提高速度
-  const LS_CACHE   = 'pettyCashCache.v1';
-  const LS_ROLE    = 'pettyCashRole.v1';
+  // ========= 你原本的全域資料（這裡先給空陣列；實際上請用你載入的 entries） =========
+  window.entries = window.entries || []; // 後續你的載入流程會填入
 
-  /* ====== 免預檢 POST：x-www-form-urlencoded（不要帶 secret） ====== */
-  const POST_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
-  function postForm(payload) {
-    return fetch(API_URL, {
-      method: 'POST',
-      headers: POST_HEADERS,
-      body: new URLSearchParams({ json: JSON.stringify(payload) })
-    }).then(r => r.json());
+  // ========= 工具 =========
+  const $ = (sel) => document.querySelector(sel);
+  function isMobile(){ return window.matchMedia('(max-width: 640px)').matches; }
+
+  // ====== 你原本就有的函式（若不存在，提供極簡預設版以便直接用） ======
+  window.applyFilters = window.applyFilters || function(rows){
+    const type = $('#typeFilter')?.value || '';
+    const cat  = $('#categoryFilter')?.value || '';
+    const date = $('#dateExact')?.value || '';
+    const kw   = $('#kw')?.value?.trim() || '';
+    return rows
+      .filter(x => !type || x.type === type)
+      .filter(x => !cat  || x.category === cat)
+      .filter(x => !date || x.date === date)
+      .filter(x => !kw   || (x.note||'').includes(kw));
+  };
+  window.calcSummary = window.calcSummary || function(_filtered){ /* 這裡留給你原本的小計邏輯 */ };
+
+  // 產生桌面列（若你已經有 rowToHTML，就會用你的）
+  window.rowToHTML = window.rowToHTML || function(r){
+    const esc = (s)=> String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    return `
+      <tr data-id="${esc(r.id)}">
+        <td>${esc(r.date||'')}</td>
+        <td>${r.type==='income'?'收入':'支出'}</td>
+        <td>${esc(r.category||'')}</td>
+        <td>${esc(r.note||'')}</td>
+        <td class="num">${Number(r.amount||0).toFixed(2)}</td>
+      </tr>
+    `;
+  };
+  // 產生卡片（若你已經有 rowToCard，就會用你的）
+  window.rowToCard = window.rowToCard || function(r){
+    const esc = (s)=> String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    return `
+      <div class="card-item">
+        <div class="grid2">
+          <div class="muted">日期</div><div>${esc(r.date||'')}</div>
+          <div class="muted">類型</div><div>${r.type==='income'?'收入':'支出'}</div>
+          <div class="muted">分類</div><div>${esc(r.category||'')}</div>
+          <div class="muted">金額</div><div style="text-align:right">${Number(r.amount||0).toFixed(2)}</div>
+          <div class="muted">備註</div><div>${esc(r.note||'')}</div>
+        </div>
+      </div>
+    `;
+  };
+
+  // ========= 分頁 & 排序 =========
+  const T_BODY_SEL = '#tbody';  // 你的 tbody
+  const CARD_LIST_SEL = '#list';
+  let CURRENT_PAGE = 1;
+  let PAGE_SIZE = 10;
+
+  function dateKey(d){
+    // 支援 'YYYY-MM-DD' 或 'YYYYMMDD'
+    if(!d) return '';
+    const s = String(d);
+    return s.includes('-') ? s.replace(/-/g,'') : s;
   }
-
-  /* ====== API 函式（一定要在 boot() 之前定義） ====== */
-  async function listEntries(params = {}) {
-    const qs = new URLSearchParams({ action: 'list', ...params });
-    const res = await fetch(API_URL + '?' + qs.toString(), { method: 'GET' });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'list failed');
-    return json.rows || [];
-  }
-  async function addEntry(row) {
-    const json = await postForm({ action: 'add', row });
-    if (!json.ok) throw new Error(json.error || 'add failed');
-    return json.id;
-  }
-  async function updateEntry(id, patch) {
-    const json = await postForm({ action: 'update', id, patch });
-    if (!json.ok) throw new Error(json.error || 'update failed');
-  }
-  async function deleteEntry(id) {
-    const json = await postForm({ action: 'delete', id });
-    if (!json.ok) throw new Error(json.error || 'delete failed');
-  }
-
-  /* ====== 狀態 & 常數 ====== */
-  let entries = [];
-  let editingId = null;
-  let role = localStorage.getItem(LS_ROLE) || '';
-  let loadedAll = false;
-
-  // 基本分類（admin 在表單會多看到「差額調整」）
-  const INCOME_CATS  = ['零用金','其他'];
-  const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','豆漿','鼎宇','廣弘','咖啡','牛奶','五金','靜電機保養','補POS','其他'];
-
-  /* ====== Helpers ====== */
-  const $ = s => document.querySelector(s);
-  const isMobile = () => matchMedia('(max-width:720px)').matches;
-  const fmtMoney = n => (n||0).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2});
-  const todayStr = () => new Date().toISOString().slice(0,10);
-  const showLoading = on => $('#loading').classList.toggle('show', !!on);
-  const saveCache = () => localStorage.setItem(LS_CACHE, JSON.stringify({ ts: Date.now(), rows: entries, limit: loadedAll?0:INITIAL_LIMIT }));
-
-  function setRole(next){
-    role = next; localStorage.setItem(LS_ROLE, role);
-    $('#roleBadge').textContent = role ? (role==='admin' ? '管理者' : '訪客') : '未登入';
-    $('#logoutBtn').style.display = role ? '' : 'none';
-    const showDataIO = (role === 'admin');
-    $('#exportBtn').style.display = showDataIO ? '' : 'none';
-    $('#importWrap').style.display = showDataIO ? '' : 'none';
-    // 更新篩選分類（admin 會帶出「差額調整」）
-    populateFilterCategories($('#typeFilter').value, $('#categoryFilter').value);
-    render();
-  }
-
-  // YYYYMMDD <-> YYYY-MM-DD
-  function ymdToDashed(yyyymmdd){
-    if(!/^\d{8}$/.test(yyyymmdd)) return '';
-    const y = yyyymmdd.slice(0,4), m = yyyymmdd.slice(4,6), d = yyyymmdd.slice(6,8);
-    const mm = Number(m), dd = Number(d);
-    if(mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
-    return `${y}-${m}-${d}`;
-  }
-  const dashedToYmd = d => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.replaceAll('-','') : '');
-
-  /* ====== 分類 & 備註規則 ====== */
-  // 表單分類：admin 會多一個「差額調整」
-  function populateCategoryForForm(type, keepVal){
-    const base = (type==='income') ? INCOME_CATS : EXPENSE_CATS;
-    const list = (role==='admin') ? Array.from(new Set([...base, '差額調整'])) : base.slice();
-
-    const sel = $('#fCategory');
-    sel.innerHTML = list.map(c=>`<option>${c}</option>`).join('');
-    if(keepVal && !list.includes(keepVal)){
-      sel.innerHTML = `<option>${keepVal}</option>` + sel.innerHTML;
-    }
-    sel.value = keepVal && (list.includes(keepVal)) ? keepVal : sel.options[0].value;
-  }
-
-  // 篩選器下拉：admin 也能選「差額調整」
-  function populateFilterCategories(typeVal, keepVal){
-    let catsIncome  = INCOME_CATS.slice();
-    let catsExpense = EXPENSE_CATS.slice();
-    if (role === 'admin') {
-      if (!catsIncome.includes('差額調整'))  catsIncome.push('差額調整');
-      if (!catsExpense.includes('差額調整')) catsExpense.push('差額調整');
-    }
-
-    const sel = $('#categoryFilter');
-    let html = '<option value="">全部分類</option>';
-    if (typeVal === 'income'){
-      html += catsIncome.map(c=>`<option>${c}</option>`).join('');
-    } else if (typeVal === 'expense'){
-      html += catsExpense.map(c=>`<option>${c}</option>`).join('');
-    } else {
-      html += `<optgroup label="收入">${catsIncome.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
-      html += `<optgroup label="支出">${catsExpense.map(c=>`<option>${c}</option>`).join('')}</optgroup>`;
-    }
-    sel.innerHTML = html;
-    if (keepVal) sel.value = keepVal;
-  }
-
-  // 備註必填：只有選「其他」才強制必填（「差額調整」不強制）
-  function applyNoteRequired(){
-    const type = $('#fType').value;
-    const cat = $('#fCategory').value;
-    const note = $('#fNote');
-    const label = $('#noteLabel');
-    const hint = $('#noteHint');
-    const required = (cat === '其他');
-    note.required = required;
-    label.classList.toggle('req', required);
-    hint.textContent = required
-      ? (type==='income' ? '收入／其他：備註必填' : '支出／其他：備註必填')
-      : (type==='income' ? '收入／零用金：備註可留白' : '支出／非「其他」：備註可留白');
-  }
-
-  /* ====== 篩選 ====== */
-  function applyFilters(list){
-    const exactText = $('#dateExact').value.trim();
-    const exact = ymdToDashed(exactText);
-    const typ = $('#typeFilter').value;
-    const cat = $('#categoryFilter').value;
-    const kw = $('#kw').value.trim();
-    return list.filter(x=>{
-      if(exact && x.date !== exact) return false;
-      if(typ && x.type !== typ) return false;
-      if(cat && x.category !== cat) return false;
-      if(kw && !(x.note||'').includes(kw)) return false;
-      return true;
+  function sortByDateDesc(rows){
+    // 先依 date 降冪，再用 updated_at 當次序穩定器
+    return [...rows].sort((a,b)=>{
+      const ak = dateKey(a.date), bk = dateKey(b.date);
+      if (ak !== bk) return bk.localeCompare(ak);
+      return String(b.updated_at||'').localeCompare(String(a.updated_at||''));
     });
   }
+  function paginate(rows, page, size){
+    const total = rows.length;
+    const totalPages = Math.max(1, Math.ceil(total / Math.max(1,size)));
+    const p = Math.min(Math.max(1, page), totalPages);
+    const start = (p - 1) * size;
+    const end = Math.min(start + size, total);
+    return { total, totalPages, page: p, size, start, end, slice: rows.slice(start, end) };
+  }
 
-  /* ====== 渲染 ====== */
-  function calcSummary(list){
-    const sumIn = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-    const sumOut = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-    $('#sumIn').textContent = fmtMoney(sumIn);
-    $('#sumOut').textContent = fmtMoney(sumOut);
-    $('#balance').textContent = fmtMoney(sumIn - sumOut);
+  function renderTable(rows){
+    const tbody = $(T_BODY_SEL);
+    const list  = $(CARD_LIST_SEL);
+    const empty = $('#empty');
+
+    if(rows.length === 0){
+      if (tbody) tbody.innerHTML = '';
+      if (list)  list.innerHTML  = '';
+      if (empty) empty.style.display = 'block';
+      if (list)  list.style.display = isMobile()? 'grid' : 'none';
+      return;
+    } else {
+      if (empty) empty.style.display = 'none';
+    }
+
+    if (isMobile()){
+      if (list){ list.style.display = 'grid'; list.innerHTML = rows.map(rowToCard).join(''); }
+      if (tbody){ tbody.innerHTML = ''; }
+    } else {
+      if (list){ list.style.display = 'none'; list.innerHTML = ''; }
+      if (tbody){ tbody.innerHTML = rows.map(rowToHTML).join(''); }
+    }
   }
-  function rowToHTML(item){
-    const moneyClass = item.type==='income'?'in':'out';
-    const disableActions = (role !== 'admin');
-    const amountCell = role==='admin'
-      ? `<input class="amt-input" type="number" min="0" step="0.01" value="${item.amount}" data-amt="1" />`
-      : `<span class="money ${moneyClass}">${fmtMoney(item.amount)}</span>`;
-    return `
-      <tr data-id="${item.id}">
-        <td>${item.date}</td>
-        <td><span class="chip">${item.type==='income'?'收入':'支出'}</span></td>
-        <td>${item.category}</td>
-        <td>${item.note||''}</td>
-        <td style="text-align:right">${amountCell}</td>
-        <td>
-          <button class="btn ${disableActions?'disabled':''}" data-act="edit">編輯</button>
-          <button class="btn btn-danger ${disableActions?'disabled':''}" data-act="del">刪除</button>
-        </td>
-      </tr>`;
+
+  function updatePager(meta){
+    const pageInput = $('#pageInput');
+    const pageTotal = $('#pageTotal');
+    const prevBtn   = $('#prevPage');
+    const nextBtn   = $('#nextPage');
+    const pageInfo  = $('#pageInfo');
+
+    if (pageInput) pageInput.value = meta.page;
+    if (pageTotal) pageTotal.textContent = meta.totalPages;
+    if (prevBtn)   prevBtn.disabled = (meta.page <= 1);
+    if (nextBtn)   nextBtn.disabled = (meta.page >= meta.totalPages);
+
+    if (pageInfo){
+      if (meta.total === 0) pageInfo.textContent = '共 0 筆';
+      else pageInfo.textContent = `顯示第 ${meta.start+1}–${meta.end} 筆，共 ${meta.total} 筆`;
+    }
   }
-  function rowToCard(item){
-    const moneyClass = item.type==='income'?'in':'out';
-    const disableActions = (role !== 'admin');
-    const amountBlock = role==='admin'
-      ? `<input class="amt-input" type="number" min="0" step="0.01" value="${item.amount}" data-amt="1" />`
-      : `<div class="money ${moneyClass}">${fmtMoney(item.amount)}</div>`;
-    return `
-      <div class="row-card" data-id="${item.id}">
-        <div class="row-top">
-          <div><span class="chip">${item.type==='income'?'收入':'支出'}</span>　${item.category}</div>
-          <div>${amountBlock}</div>
-        </div>
-        <div class="row-mid">
-          <div><strong>日期</strong>：${item.date}</div>
-          <div><strong>備註</strong>：<span class="row-note">${item.note||'—'}</span></div>
-        </div>
-        <div class="row-actions">
-          <button class="btn ${disableActions?'disabled':''}" data-act="edit">編輯</button>
-          <button class="btn btn-danger ${disableActions?'disabled':''}" data-act="del">刪除</button>
-        </div>
-      </div>`;
-  }
+
+  // 你的「主渲染」：<< 這段是重點，已改成含分頁 >>
   function render(){
-    const sorted = entries.slice().sort((a,b)=> b.date.localeCompare(a.date));
+    // 1) 依日期降冪
+    const sorted = sortByDateDesc(window.entries || []);
+    // 2) 套用你原本的篩選
     const filtered = applyFilters(sorted);
+    // 3) 小計/彙總（保留你的邏輯）
     calcSummary(filtered);
-    const tbody = $('#tbody'), list = $('#list'), empty = $('#empty');
-
-    if(filtered.length===0){
-      tbody.innerHTML=''; list.innerHTML=''; empty.style.display='block';
-      list.style.display = isMobile()? 'grid' : 'none';
-      return;
-    } else { empty.style.display='none'; }
-
-    if(isMobile()){
-      list.style.display='grid'; tbody.innerHTML=''; list.innerHTML = filtered.map(rowToCard).join('');
-    }else{
-      list.style.display='none'; tbody.innerHTML = filtered.map(rowToHTML).join('');
-    }
+    // 4) 分頁
+    const meta = paginate(filtered, CURRENT_PAGE, PAGE_SIZE);
+    if (meta.page !== CURRENT_PAGE) CURRENT_PAGE = meta.page; // 若超出頁數，自動回最後一頁
+    // 5) 實際渲染
+    renderTable(meta.slice);
+    updatePager(meta);
   }
 
-  /* ====== 登入（示範） ====== */
-  const ADMIN_PASS = 'ssY@94540923';
-  function openLogin(){ const m = $('#loginModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false'); $('#adminForm').style.display='none'; }
-  function closeLogin(){ const m = $('#loginModal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); $('#adminPwd').value=''; }
+  // 事件：分頁控制
+  (function bindPagerEvents(){
+    const sizeSel  = $('#pageSize');
+    const pageInput= $('#pageInput');
+    const prevBtn  = $('#prevPage');
+    const nextBtn  = $('#nextPage');
 
-  $('#loginBtn').addEventListener('click', openLogin);
-  $('#logoutBtn').addEventListener('click', ()=>{ setRole(''); openLogin(); });
-  $('#asGuest').addEventListener('click', ()=>{ $('#adminForm').style.display='none'; setRole('guest'); closeLogin(); });
-  $('#asAdmin').addEventListener('click', ()=>{ $('#adminForm').style.display='grid'; $('#adminPwd').focus(); });
-  $('#loginCancel').addEventListener('click', closeLogin);
-  $('#loginOk').addEventListener('click', ()=>{
-    if($('#adminForm').style.display!=='none'){
-      const ok = ($('#adminPwd').value === ADMIN_PASS);
-      if(!ok){ alert('密碼錯誤'); return; }
-      setRole('admin'); closeLogin();
-      if(document.getElementById('entryModal').classList.contains('show')){
-        populateCategoryForForm($('#fType').value, $('#fCategory').value);
-        applyNoteRequired();
-      }
-    }else{
-      setRole('guest'); closeLogin();
-    }
-  });
-
-  /* ====== 新增/編輯（樂觀） ====== */
-  function openEntry(editItem){
-    $('#entryModal').classList.add('show');
-    $('#entryModal').setAttribute('aria-hidden','false');
-
-    const d = $('#fDate'), t = $('#fType'), n = $('#fNote'), a = $('#fAmount');
-    if(editItem){
-      $('#dlgTitle').textContent = '編輯紀錄';
-      editingId = editItem.id;
-      t.value = editItem.type;
-      populateCategoryForForm(t.value, editItem.category);
-      d.value = editItem.date;fDateFallback.value = d.value; n.value = editItem.note||''; a.value = editItem.amount;
-    }else{
-      $('#dlgTitle').textContent = '新增紀錄';
-      editingId = null;
-      t.value = 'expense';
-      populateCategoryForForm('expense', null);
-      d.value = todayStr();
-      fDateFallback.value = d.value;
-      n.value = ''; a.value = '';
-    }
-    applyNoteRequired();
-    setTimeout(()=>$('#fDate').focus(), 0);
-  }
-  function closeEntry(){ $('#entryModal').classList.remove('show'); $('#entryModal').setAttribute('aria-hidden','true'); }
-
-  $('#addBtn').addEventListener('click', ()=> openEntry(null));
-  $('#cancelBtn').addEventListener('click', closeEntry);
-  $('#fType').addEventListener('change', ()=>{ populateCategoryForForm($('#fType').value, null); applyNoteRequired(); });
-  $('#fCategory').addEventListener('change', applyNoteRequired);
-
-  $('#saveBtn').addEventListener('click', async ()=>{
-    const date = $('#fDate').value;
-    const type = $('#fType').value;
-    const category = $('#fCategory').value;
-    const note = $('#fNote').value.trim();
-    const amount = parseFloat($('#fAmount').value);
-    if(!date) return alert('請選擇日期');
-    if(!type) return alert('請選擇類型');
-    if(!category) return alert('請選擇分類');
-    if(category === '其他' && !note) return alert('此分類需填寫備註');
-    if(!(amount>=0)) return alert('請輸入正確金額');
-
-    if(editingId){
-      if(role !== 'admin'){ alert('訪客模式不可編輯'); return; }
-      const idx = entries.findIndex(x=>x.id===editingId);
-      const backup = idx>-1 ? {...entries[idx]} : null;
-      if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount }; render(); saveCache(); }
-      closeEntry();
-      try{ await updateEntry(editingId, { date, type, category, note, amount }); }
-      catch(e){ if(backup){ entries[idx]=backup; render(); saveCache(); } alert('更新失敗：' + e.message); }
-      return;
-    }
-
-    // 樂觀新增
-    const tempId = 'tmp-' + Math.random().toString(36).slice(2);
-    const temp = { id: tempId, date, type, category, note, amount };
-    entries.unshift(temp); render(); saveCache(); closeEntry();
-    try{
-      const realId = await addEntry({ date, type, category, note, amount });
-      const i = entries.findIndex(x => x.id === tempId);
-      if (i > -1) entries[i].id = realId;
-      render(); saveCache();
-    }catch(err){
-      const i = entries.findIndex(x => x.id === tempId);
-      if (i > -1) entries.splice(i, 1);
-      render(); saveCache();
-      alert('新增失敗：' + err.message);
-    }
-  });
-
-  /* ====== 行內金額（admin） ====== */
-  document.body.addEventListener('change', async (e)=>{
-    const el = e.target;
-    if(el.matches('[data-amt]')){
-      if(role!=='admin'){ return; }
-      const host = el.closest('[data-id]'); if(!host) return;
-      const id = host.getAttribute('data-id');
-      const val = parseFloat(el.value);
-      if(isNaN(val)) return;
-      const idx = entries.findIndex(x=>x.id===id);
-      const backup = idx>-1 ? entries[idx].amount : null;
-      if(idx>-1){ entries[idx].amount = val; render(); saveCache(); }
-      try{ await updateEntry(id, { amount: val }); }
-      catch(err){ if(idx>-1){ entries[idx].amount = backup; render(); saveCache(); } alert('更新失敗：' + err.message); }
-    }
-  });
-
-  /* ====== 列表上的編輯/刪除 ====== */
-  document.body.addEventListener('click', async (e)=>{
-    const btn = e.target.closest('button[data-act]');
-    if(!btn) return;
-    const act = btn.dataset.act;
-    const host = btn.closest('[data-id]');
-    if(!host) return;
-    const id = host.getAttribute('data-id');
-    const item = entries.find(x=>x.id===id);
-    if(!item) return;
-
-    if(act==='edit'){
-      if(role!=='admin'){ alert('訪客模式不可編輯'); return; }
-      openEntry(item);
-    }else if(act==='del'){
-      if(role!=='admin'){ alert('訪客模式不可刪除'); return; }
-      if(!confirm('確認刪除這筆紀錄？')) return;
-      const idx = entries.findIndex(x=>x.id===id);
-      const backup = idx>-1 ? entries[idx] : null;
-      if(idx>-1){ entries.splice(idx,1); render(); saveCache(); }
-      try{ await deleteEntry(id); }
-      catch(err){ if(backup){ entries.splice(idx,0,backup); render(); saveCache(); } alert('刪除失敗：' + err.message); }
-    }
-  });
-
-  /* ====== 篩選：日期（文字 + 日曆） ====== */
-  const dateTxt = $('#dateExact');
-  const datePicker = $('#dateExactPicker');
-  $('#openCalendar').addEventListener('click', ()=>{ if(datePicker.showPicker){ datePicker.showPicker(); } else { datePicker.focus(); datePicker.click(); } });
-  datePicker.addEventListener('change', ()=>{ const ymd = dashedToYmd(datePicker.value); dateTxt.value = ymd; dateTxt.classList.remove('invalid'); render(); });
-  dateTxt.addEventListener('input', ()=>{
-    const digits = dateTxt.value.replace(/\D/g,'').slice(0,8);
-    if(dateTxt.value !== digits) dateTxt.value = digits;
-    if(digits.length === 0){ dateTxt.classList.remove('invalid'); datePicker.value=''; }
-    else if(digits.length === 8 && ymdToDashed(digits)){ dateTxt.classList.remove('invalid'); datePicker.value = ymdToDashed(digits); }
-    else { dateTxt.classList.add('invalid'); datePicker.value=''; }
-    render();
-  });
-
-  $('#typeFilter').addEventListener('input', ()=>{
-    const prev = $('#categoryFilter').value;
-    populateFilterCategories($('#typeFilter').value, prev);
-    render();
-  });
-  ['categoryFilter','kw'].forEach(id=> $('#'+id).addEventListener('input', render));
-  $('#clearFilters').addEventListener('click', ()=>{
-    dateTxt.value=''; dateTxt.classList.remove('invalid'); datePicker.value='';
-    $('#typeFilter').value='';
-    populateFilterCategories('', '');
-    $('#kw').value='';
-    render();
-  });
-
-  /* ====== 新增/編輯表單：日期選擇器 ====== */
-const fDate = document.getElementById('fDate');
-const fDateFallback = document.getElementById('fDateFallback');
-const openFDateBtn = document.getElementById('openFDateCal');
-
-// 按 📅 叫出原生日曆；不支援 showPicker 就用 focus/click；再不行用隱藏的 fallback
-if (openFDateBtn && fDate) {
-  openFDateBtn.addEventListener('click', () => {
-    if (typeof fDate.showPicker === 'function') {
-      fDate.showPicker();
-      return;
-    }
-    try { fDate.focus(); fDate.click(); } catch (_) {}
-    if (fDateFallback) {
-      try {
-        if (typeof fDateFallback.showPicker === 'function') fDateFallback.showPicker();
-        else { fDateFallback.focus(); fDateFallback.click(); }
-      } catch (_) {}
-    }
-  });
-}
-
-// 用 fallback 選到日期時，回填到真正欄位
-if (fDateFallback) {
-  fDateFallback.addEventListener('change', () => {
-    if (fDateFallback.value) fDate.value = fDateFallback.value;
-  });
-}
-
-
-  /* ====== 匯出（admin） ====== */
-  $('#exportBtn').addEventListener('click', async ()=>{
-    if (role !== 'admin') { alert('只有管理者可匯出'); return; }
-    try{
-      const all = await listEntries();
-      const blob = new Blob([JSON.stringify(all,null,2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'petty-cash.json'; a.click();
-      URL.revokeObjectURL(url);
-    }catch(err){ alert('匯出失敗：' + err.message); }
-  });
-
-  /* ====== 匯入（admin，可選） ====== */
-  $('#importInput').addEventListener('change', async (e)=>{
-    if (role !== 'admin') { alert('只有管理者可匯入'); e.target.value=''; return; }
-    const file = e.target.files[0]; if(!file) return;
-    try{
-      showLoading(true);
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if(!Array.isArray(data)) throw new Error('格式不正確，需為陣列');
-
-      for (const r0 of data){
-        const r = {
-          date: r0.date, type: r0.type, category: r0.category,
-          note: r0.note || '', amount: Number(r0.amount)||0
-        };
-        // 逐筆新增（簡單可靠）
-        const id = await addEntry(r);
-        entries.unshift({ id, ...r });
-      }
-      render(); saveCache();
-      alert('匯入完成');
-    }catch(err){ alert('匯入失敗：'+err.message); }
-    finally{ e.target.value=''; showLoading(false); }
-  });
-
-  /* ====== 載入全部 ====== */
-  $('#loadAllBtn').addEventListener('click', async ()=>{
-    if (loadedAll) return;
-    try{
-      showLoading(true);
-      const all = await listEntries(); // 全量
-      entries = all;
-      loadedAll = true;
-      $('#loadHint').style.display = 'none';
-      render(); saveCache();
-    }catch(err){ alert('載入全部失敗：' + err.message); }
-    finally{ showLoading(false); }
-  });
-
-  /* ====== 啟動（快取先畫面；背景更新；註冊 SW） ====== */
-  function boot(){
-    // 註冊 Service Worker（若沒有 sw.js 可把這段刪除）
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.warn);
-    }
-
-    populateFilterCategories('', '');
-    setRole(role || '');
-    if(!role) openLogin();
-
-    // 1) 快取先畫面
-    try{
-      const cached = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
-      if (cached && Array.isArray(cached.rows) && cached.rows.length) {
-        entries = cached.rows;
-        loadedAll = (cached.limit ? false : true);
-        $('#loadHint').style.display = cached.limit ? 'block' : 'none';
+    if (sizeSel){
+      sizeSel.value = String(PAGE_SIZE);
+      sizeSel.addEventListener('change', ()=>{
+        PAGE_SIZE = parseInt(sizeSel.value, 10) || 10;
+        CURRENT_PAGE = 1; // 換頁大小回到第一頁
         render();
-      } else {
-        entries = [];
+      });
+    }
+    if (pageInput){
+      pageInput.addEventListener('change', ()=>{
+        const v = parseInt(pageInput.value, 10) || 1;
+        CURRENT_PAGE = Math.max(1, v);
         render();
-      }
-    }catch{}
+      });
+    }
+    if (prevBtn){
+      prevBtn.addEventListener('click', ()=>{
+        if (CURRENT_PAGE > 1){ CURRENT_PAGE--; render(); }
+      });
+    }
+    if (nextBtn){
+      nextBtn.addEventListener('click', ()=>{
+        CURRENT_PAGE++; // render 內會 clamp 到最後一頁
+        render();
+      });
+    }
+  })();
 
-    // 2) 背景更新
-    (async ()=>{
-      try{
-        const fresh = await listEntries({ limit: INITIAL_LIMIT });
-        entries = fresh;
-        loadedAll = false;
-        $('#loadHint').style.display = 'block';
-        render(); saveCache();
-      }catch(err){
-        console.warn('listEntries failed:', err);
-      }
-    })();
+  // 事件：篩選變動時回到第一頁
+  (function bindFilterEvents(){
+    ['typeFilter','categoryFilter','dateExact','kw'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', ()=>{
+        CURRENT_PAGE = 1;
+        render();
+      });
+    });
+    const clr = $('#clearFilters');
+    if (clr) clr.addEventListener('click', ()=>{
+      const tf=$('#typeFilter'), cf=$('#categoryFilter'), dt=$('#dateExact'), kw=$('#kw');
+      if(tf) tf.value='';
+      if(cf) cf.value='';
+      if(dt) dt.value='';
+      if(kw) kw.value='';
+      CURRENT_PAGE = 1;
+      render();
+    });
+  })();
 
-    // RWD 重繪
-    const mq = window.matchMedia('(max-width:720px)');
-    (mq.addEventListener ? mq.addEventListener('change', render) : mq.addListener(render));
-    let _rszTimer; window.addEventListener('resize', ()=>{ clearTimeout(_rszTimer); _rszTimer = setTimeout(render, 120); });
-    window.addEventListener('orientationchange', render);
+  // ====== Demo：載入幾筆假資料（正式環境可移除，改用你原本的載入 entries 流程） ======
+  if (!window.entries || window.entries.length === 0){
+    const today = new Date();
+    const iso = (d)=> d.toISOString().slice(0,10);
+    const daysAgo = (n)=> { const d=new Date(today); d.setDate(d.getDate()-n); return iso(d); };
+    window.entries = [
+      {id:'a1', date: daysAgo(0), type:'expense', category:'雞蛋', note:'測試1', amount:120, updated_at: new Date().toISOString()},
+      {id:'a2', date: daysAgo(1), type:'income',  category:'零用金', note:'入帳', amount:1000, updated_at: new Date().toISOString()},
+      {id:'a3', date: daysAgo(1), type:'expense', category:'冰塊', note:'製冰', amount:80, updated_at: new Date().toISOString()},
+      {id:'a4', date: daysAgo(2), type:'expense', category:'豆漿', note:'早餐', amount:60, updated_at: new Date().toISOString()},
+      {id:'a5', date: daysAgo(2), type:'expense', category:'鼎宇', note:'材料', amount:300, updated_at: new Date().toISOString()},
+      {id:'a6', date: daysAgo(3), type:'expense', category:'靜電機保養', note:'維護', amount:500, updated_at: new Date().toISOString()},
+      {id:'a7', date: daysAgo(4), type:'expense', category:'補POS', note:'補貨', amount:200, updated_at: new Date().toISOString()},
+      {id:'a8', date: daysAgo(5), type:'expense', category:'廣弘', note:'食材', amount:150, updated_at: new Date().toISOString()},
+      {id:'a9', date: daysAgo(6), type:'expense', category:'蔬果', note:'青菜', amount:90, updated_at: new Date().toISOString()},
+      {id:'a10',date: daysAgo(7), type:'expense', category:'五金', note:'耗材', amount:75, updated_at: new Date().toISOString()},
+      {id:'a11',date: daysAgo(8), type:'expense', category:'咖啡', note:'豆子', amount:220, updated_at: new Date().toISOString()},
+    ];
   }
-  boot();
 
-  /* ====== 後端（GAS）也請允許「差額調整」分類 ======
-     const INCOME_CATS  = ['零用金','其他','差額調整'];
-     const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','豆漿','鼎宇','廣弘','咖啡','牛奶','五金','靜電機保養','補POS','其他','差額調整'];
-     const ALLOWED_CATS = new Set([...INCOME_CATS, ...EXPENSE_CATS]);
-  */
+  // 首次渲染
+  render();
+
+  // ====== 導出給你在「新增成功」後呼叫：回到第一頁再重繪 ======
+  window.goFirstPage = function(){ CURRENT_PAGE = 1; render(); };
 </script>
 </body>
 </html>
-
-
-
-
