@@ -3,81 +3,159 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>零用金明細</title>
+<title>簡易零用金系統</title>
+<link rel="preconnect" href="https://pcash.ravenxia1205-801.workers.dev">
+<link rel="dns-prefetch" href="https://pcash.ravenxia1205-801.workers.dev">
 <style>
-  :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --line:#1f2937 }
-  *{ box-sizing:border-box }
-  html,body{ margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system }
-  .wrap{ max-width:1100px; margin:auto; padding:20px }
-  h1{ margin:0 0 12px; font-size:20px }
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px }
-  table{ width:100%; border-collapse:collapse }
-  th,td{ padding:10px; border-bottom:1px solid var(--line); text-align:left }
-  th{ color:var(--muted); font-weight:600 }
-  td.num{ text-align:right }
-  .muted{ color:var(--muted) }
-  /* 行動版卡片清單 */
-  #list{ display:none; gap:12px; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)) }
-  .card-item{ border:1px solid var(--line); border-radius:12px; padding:10px; background:#0b1220 }
-  .grid2{ display:grid; grid-template-columns:auto 1fr; gap:6px 10px }
-  /* 分頁列 */
-  .pager{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:12px; padding:10px 0; flex-wrap:wrap; border-top:1px solid var(--line); margin-top:8px;
-  }
-  .pager-left, .pager-right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap }
-  .pager select, .pager input[type="number"]{
-    background:#0b1220; color:#e5e7eb; border:1px solid var(--line); border-radius:8px; padding:6px 8px; width:auto;
-  }
-  .pager button{
-    background:#0b2133; color:#e5e7eb; border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer;
-  }
-  .pager button:disabled{ opacity:.5; cursor:default }
-  @media (max-width:640px){
-    #list{ grid-template-columns:1fr }
-    .pager{ flex-direction:column; align-items:stretch }
-    .pager-right{ justify-content:space-between }
-  }
+:root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
+--acc:#22d3ee; --danger:#ef4444; --ok:#22c55e; --line:#1f2937; --chip:#0b2a33 }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+.wrap{max-width:1100px;margin:auto;padding:20px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:20px;margin:0}
+.actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,.btn{background:#0b2133;border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
+button:hover{border-color:#244b63}
+.btn-primary{background:#082432;border-color:#0e3b52}
+.btn-danger{background:#2a0f13;border-color:#511b21}
+.btn-ghost{background:transparent}
+.muted{color:var(--muted);font-size:13px}
+.role-badge{padding:4px 8px;border-radius:999px;border:1px solid #0e3b52;background:#072133}
+.inline-field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.calendar-btn{padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b2133;cursor:pointer}
+.calendar-btn:hover{border-color:#244b63}
+.invalid{border-color:var(--danger)!important; outline: none}
+
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.card h3{margin:0 0 4px;font-size:13px;color:var(--muted)}
+.card .val{font-size:22px;font-weight:700}
+.val.in{color:var(--ok)} .val.out{color:var(--danger)} .val.bal{color:var(--acc)}
+.hint{margin:0 0 12px}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.toolbar input,.toolbar select{background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px}
+
+/* ====== 日期區間：桌機與手機排版 ====== */
+.date-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.date-group{display:grid;grid-template-columns:auto minmax(160px,1fr) auto;gap:8px;align-items:center}
+.date-group label{white-space:nowrap}
+.tilde{white-space:nowrap}
+.tilde-mobile{display:none} /* 僅手機顯示 */
+
+.table-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+th{color:var(--muted);font-weight:600;background:#0c1526}
+tr:hover td{background:#0a1422}
+.chip{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:var(--chip);border:1px solid #103543}
+.money.in{color:var(--ok);font-weight:700}
+.money.out{color:var(--danger);font-weight:700}
+.empty{padding:24px;color:var(--muted);text-align:center}
+.disabled{opacity:.5;pointer-events:none}
+.amt-input{width:100%; background:#0b1220;border:1px solid var(--line);color:var(--text);padding:8px;border-radius:10px}
+
+.table-scroller{overflow:auto}
+@media (max-width: 720px){
+  .summary{grid-template-columns:1fr}
+  .toolbar{flex-direction:column}
+  /* 手機：兩行呈現，每行= 標籤 + 日期輸入 + 按鈕 */
+  .date-row{display:grid;gap:8px}
+  .date-group{grid-template-columns:auto 1fr auto}
+  .tilde{display:none}         /* 隱藏中間的 ~ */
+  .tilde-mobile{display:inline}/* 改在第二行標籤前面顯示 ~ */
+  .table-wrap{border:none;background:transparent}
+  table{display:none}
+  .list{display:grid;gap:10px}
+  .row-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:8px}
+  .row-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .row-mid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .row-note{color:var(--muted);font-size:13px}
+  .row-actions{display:flex;gap:8px;justify-content:flex-end}
+}
+
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,20,.6);padding:16px;z-index:40}
+.modal.show{display:flex}
+.dialog{width:100%;max-width:600px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+.dialog header{padding:14px 16px;border-bottom:1px solid var(--line)}
+.dialog .body{padding:16px;display:grid;gap:12px}
+.dialog footer{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+.form-row{display:grid;gap:8px}
+.form-row.inline{grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:13px;color:var(--muted)}
+input[type="text"], input[type="number"], input[type="date"], select{
+  background:#0b1220;border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px;width:100%
+}
+.req::after{content:"*";color:var(--danger);margin-left:4px}
+
+.login .dialog{max-width:460px}
+.login h3{margin:0 0 6px;font-size:18px}
+.login .role-cta{display:flex;gap:8px;flex-wrap:wrap}
+.warn{font-size:12px;color:#eab308}
+
+.loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:50}
+.loading.show{display:flex}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>零用金明細</h1>
+<header>
+  <h1>簡易零用金系統</h1>
+  <div class="actions">
+    <span id="roleBadge" class="role-badge muted">未登入</span>
+    <button id="loginBtn" class="btn">登入 / 切換</button>
+    <button id="logoutBtn" class="btn-ghost" style="display:none">登出</button>
+    <span class="muted">|</span>
+    <button id="addBtn" class="btn-primary">＋ 新增紀錄</button>
+    <button id="loadAllBtn" class="btn-ghost" title="載入所有資料（可能較慢）">載入全部</button>
+    <button id="exportBtn" class="btn">匯出 JSON</button>
+    <label id="importWrap" class="btn-ghost" style="border:1px dashed var(--line);padding:8px 12px;border-radius:10px;cursor:pointer">
+      匯入 JSON <input id="importInput" type="file" accept="application/json" style="display:none">
+    </label>
+  </div>
+</header>
 
-  <!-- 篩選區 -->
-  <div class="card" style="margin-bottom:12px">
-    <div style="display:flex;flex-wrap:wrap;gap:10px">
-      <label>類型
-        <select id="typeFilter">
-          <option value="">全部</option>
-          <option value="income">收入</option>
-          <option value="expense">支出</option>
-        </select>
-      </label>
-      <label>分類
-        <select id="categoryFilter">
-          <option value="">全部</option>
-          <option>雞蛋</option><option>蔬果</option><option>冰塊</option>
-          <option>豆漿</option><option>鼎宇</option>
-          <option>廣弘</option><option>咖啡</option><option>牛奶</option>
-          <option>五金</option><option>靜電機保養</option><option>補POS</option>
-          <option>其他</option><option>差額調整</option>
-          <option>零用金</option> <!-- 收入用 -->
-        </select>
-      </label>
-      <label>日期（YYYY-MM-DD）
-        <input id="dateExact" placeholder="例如 2025-08-14" />
-      </label>
-      <label>關鍵字
-        <input id="kw" placeholder="備註含…" />
-      </label>
-      <button id="clearFilters" type="button">清除篩選</button>
+<section class="summary">
+  <div class="card"><h3>總收入（目前載入）</h3><div class="val in" id="sumIn">0</div></div>
+  <div class="card"><h3>總支出（目前載入）</h3><div class="val out" id="sumOut">0</div></div>
+  <div class="card"><h3>結餘（目前載入）</h3><div class="val bal" id="balance">0</div></div>
+</section>
+<p class="muted hint" id="loadHint" style="display:none">目前僅載入最近資料。若需完整統計，請點右上角「載入全部」。</p>
+
+<!-- ===== 篩選工具列（手機：兩行；桌機：同排） ===== -->
+<section class="toolbar">
+  <div class="date-row">
+    <div class="date-group">
+      <label class="muted" for="dateFrom">起始日期</label>
+      <input type="date" id="dateFrom" />
+      <button id="openFromCal" class="calendar-btn" type="button" title="開啟起始日曆">📅</button>
+      <input type="date" id="dateFromFallback" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
+    </div>
+    <span class="tilde muted">~</span>
+    <div class="date-group">
+      <label class="muted" for="dateTo"><span class="tilde-mobile">~ </span>結束日期</label>
+      <input type="date" id="dateTo" />
+      <button id="openToCal" class="calendar-btn" type="button" title="開啟結束日曆">📅</button>
+      <input type="date" id="dateToFallback" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" />
     </div>
   </div>
 
-  <!-- 桌面版表格 -->
-  <div class="card">
-    <table>
+  <select id="typeFilter">
+    <option value="">全部類型</option>
+    <option value="income">收入</option>
+    <option value="expense">支出</option>
+  </select>
+  <select id="categoryFilter"></select>
+
+  <input type="text" id="kw" placeholder="搜尋備註關鍵字…" />
+  <button id="applyFilters" class="btn-ghost">依條件搜尋</button>
+  <button id="clearFilters" class="btn-ghost">清除篩選</button>
+</section>
+
+<section class="table-wrap">
+  <div class="table-scroller">
+    <table id="tbl">
       <thead>
         <tr>
           <th>日期</th>
@@ -85,261 +163,17 @@
           <th>分類</th>
           <th>備註</th>
           <th style="text-align:right">金額</th>
+          <th style="width:180px">操作</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
-
-    <!-- 行動版卡片清單 -->
-    <div id="list"></div>
-
-    <!-- 空狀態 -->
-    <div id="empty" class="muted" style="display:none;padding:10px">沒有符合篩選的資料。</div>
-
-    <!-- 分頁列：放在清單表格的正下方 -->
-    <div id="pager" class="pager">
-      <div class="pager-left">
-        <label>每頁顯示
-          <select id="pageSize">
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select> 筆
-        </label>
-      </div>
-      <div class="pager-right">
-        <button id="prevPage" type="button">上一頁</button>
-        第 <input id="pageInput" type="number" min="1" value="1" style="width:72px"> /
-        <span id="pageTotal">1</span> 頁
-        <button id="nextPage" type="button">下一頁</button>
-        <span id="pageInfo" class="muted" style="margin-left:8px"></span>
-      </div>
-    </div>
   </div>
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" style="display:none">目前沒有紀錄</div>
+</section>
 </div>
 
-<script>
-  // ========= 你原本的全域資料（這裡先給空陣列；實際上請用你載入的 entries） =========
-  window.entries = window.entries || []; // 後續你的載入流程會填入
-
-  // ========= 工具 =========
-  const $ = (sel) => document.querySelector(sel);
-  function isMobile(){ return window.matchMedia('(max-width: 640px)').matches; }
-
-  // ====== 你原本就有的函式（若不存在，提供極簡預設版以便直接用） ======
-  window.applyFilters = window.applyFilters || function(rows){
-    const type = $('#typeFilter')?.value || '';
-    const cat  = $('#categoryFilter')?.value || '';
-    const date = $('#dateExact')?.value || '';
-    const kw   = $('#kw')?.value?.trim() || '';
-    return rows
-      .filter(x => !type || x.type === type)
-      .filter(x => !cat  || x.category === cat)
-      .filter(x => !date || x.date === date)
-      .filter(x => !kw   || (x.note||'').includes(kw));
-  };
-  window.calcSummary = window.calcSummary || function(_filtered){ /* 這裡留給你原本的小計邏輯 */ };
-
-  // 產生桌面列
-  window.rowToHTML = window.rowToHTML || function(r){
-    const esc = (s)=> String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    return `
-      <tr data-id="${esc(r.id)}">
-        <td>${esc(r.date||'')}</td>
-        <td>${r.type==='income'?'收入':'支出'}</td>
-        <td>${esc(r.category||'')}</td>
-        <td>${esc(r.note||'')}</td>
-        <td class="num">${Number(r.amount||0).toFixed(2)}</td>
-      </tr>
-    `;
-  };
-  // 產生卡片
-  window.rowToCard = window.rowToCard || function(r){
-    const esc = (s)=> String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    return `
-      <div class="card-item">
-        <div class="grid2">
-          <div class="muted">日期</div><div>${esc(r.date||'')}</div>
-          <div class="muted">類型</div><div>${r.type==='income'?'收入':'支出'}</div>
-          <div class="muted">分類</div><div>${esc(r.category||'')}</div>
-          <div class="muted">金額</div><div style="text-align:right">${Number(r.amount||0).toFixed(2)}</div>
-          <div class="muted">備註</div><div>${esc(r.note||'')}</div>
-        </div>
-      </div>
-    `;
-  };
-
-  // ========= 分頁 & 排序 =========
-  const T_BODY_SEL = '#tbody';  // 你的 tbody
-  const CARD_LIST_SEL = '#list';
-  let CURRENT_PAGE = 1;
-  let PAGE_SIZE = 10;
-
-  function dateKey(d){
-    // 支援 'YYYY-MM-DD' 或 'YYYYMMDD'
-    if(!d) return '';
-    const s = String(d);
-    return s.includes('-') ? s.replace(/-/g,'') : s;
-  }
-  function sortByDateDesc(rows){
-    // 先依 date 降冪，再用 updated_at 當次序穩定器
-    return [...rows].sort((a,b)=>{
-      const ak = dateKey(a.date), bk = dateKey(b.date);
-      if (ak !== bk) return bk.localeCompare(ak);
-      return String(b.updated_at||'').localeCompare(String(a.updated_at||''));
-    });
-  }
-  function paginate(rows, page, size){
-    const total = rows.length;
-    const totalPages = Math.max(1, Math.ceil(total / Math.max(1,size)));
-    const p = Math.min(Math.max(1, page), totalPages);
-    const start = (p - 1) * size;
-    const end = Math.min(start + size, total);
-    return { total, totalPages, page: p, size, start, end, slice: rows.slice(start, end) };
-  }
-
-  function renderTable(rows){
-    const tbody = $(T_BODY_SEL);
-    const list  = $(CARD_LIST_SEL);
-    const empty = $('#empty');
-
-    if(rows.length === 0){
-      if (tbody) tbody.innerHTML = '';
-      if (list)  list.innerHTML  = '';
-      if (empty) empty.style.display = 'block';
-      if (list)  list.style.display = isMobile()? 'grid' : 'none';
-      return;
-    } else {
-      if (empty) empty.style.display = 'none';
-    }
-
-    if (isMobile()){
-      if (list){ list.style.display = 'grid'; list.innerHTML = rows.map(rowToCard).join(''); }
-      if (tbody){ tbody.innerHTML = ''; }
-    } else {
-      if (list){ list.style.display = 'none'; list.innerHTML = ''; }
-      if (tbody){ tbody.innerHTML = rows.map(rowToHTML).join(''); }
-    }
-  }
-
-  function updatePager(meta){
-    const pageInput = $('#pageInput');
-    const pageTotal = $('#pageTotal');
-    const prevBtn   = $('#prevPage');
-    const nextBtn   = $('#nextPage');
-    const pageInfo  = $('#pageInfo');
-
-    if (pageInput) pageInput.value = meta.page;
-    if (pageTotal) pageTotal.textContent = meta.totalPages;
-    if (prevBtn)   prevBtn.disabled = (meta.page <= 1);
-    if (nextBtn)   nextBtn.disabled = (meta.page >= meta.totalPages);
-
-    if (pageInfo){
-      if (meta.total === 0) pageInfo.textContent = '共 0 筆';
-      else pageInfo.textContent = `顯示第 ${meta.start+1}–${meta.end} 筆，共 ${meta.total} 筆`;
-    }
-  }
-
-  // 主渲染
-  function render(){
-    // 1) 依日期降冪
-    const sorted = sortByDateDesc(window.entries || []);
-    // 2) 篩選
-    const filtered = applyFilters(sorted);
-    // 3) 小計/彙總
-    calcSummary(filtered);
-    // 4) 分頁
-    const meta = paginate(filtered, CURRENT_PAGE, PAGE_SIZE);
-    if (meta.page !== CURRENT_PAGE) CURRENT_PAGE = meta.page; // 若超出頁數，自動回最後一頁
-    // 5) 實際渲染
-    renderTable(meta.slice);
-    updatePager(meta);
-  }
-
-  // 事件：分頁控制
-  (function bindPagerEvents(){
-    const sizeSel  = $('#pageSize');
-    const pageInput= $('#pageInput');
-    const prevBtn  = $('#prevPage');
-    const nextBtn  = $('#nextPage');
-
-    if (sizeSel){
-      sizeSel.value = String(PAGE_SIZE);
-      sizeSel.addEventListener('change', ()=>{
-        PAGE_SIZE = parseInt(sizeSel.value, 10) || 10;
-        CURRENT_PAGE = 1; // 換頁大小回到第一頁
-        render();
-      });
-    }
-    if (pageInput){
-      pageInput.addEventListener('change', ()=>{
-        const v = parseInt(pageInput.value, 10) || 1;
-        CURRENT_PAGE = Math.max(1, v);
-        render();
-      });
-    }
-    if (prevBtn){
-      prevBtn.addEventListener('click', ()=>{
-        if (CURRENT_PAGE > 1){ CURRENT_PAGE--; render(); }
-      });
-    }
-    if (nextBtn){
-      nextBtn.addEventListener('click', ()=>{
-        CURRENT_PAGE++; // render 內會 clamp 到最後一頁
-        render();
-      });
-    }
-  })();
-
-  // 事件：篩選變動時回到第一頁
-  (function bindFilterEvents(){
-    ['typeFilter','categoryFilter','dateExact','kw'].forEach(id=>{
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('input', ()=>{
-        CURRENT_PAGE = 1;
-        render();
-      });
-    });
-    const clr = $('#clearFilters');
-    if (clr) clr.addEventListener('click', ()=>{
-      const tf=$('#typeFilter'), cf=$('#categoryFilter'), dt=$('#dateExact'), kw=$('#kw');
-      if(tf) tf.value='';
-      if(cf) cf.value='';
-      if(dt) dt.value='';
-      if(kw) kw.value='';
-      CURRENT_PAGE = 1;
-      render();
-    });
-  })();
-
-  // ====== Demo：載入幾筆假資料 ======
-  if (!window.entries || window.entries.length === 0){
-    const today = new Date();
-    const iso = (d)=> d.toISOString().slice(0,10);
-    const daysAgo = (n)=> { const d=new Date(today); d.setDate(d.getDate()-n); return iso(d); };
-    window.entries = [
-      {id:'a1', date: daysAgo(0), type:'expense', category:'雞蛋', note:'測試1', amount:120, updated_at: new Date().toISOString()},
-      {id:'a2', date: daysAgo(1), type:'income',  category:'零用金', note:'入帳', amount:1000, updated_at: new Date().toISOString()},
-      {id:'a3', date: daysAgo(1), type:'expense', category:'冰塊', note:'製冰', amount:80, updated_at: new Date().toISOString()},
-      {id:'a4', date: daysAgo(2), type:'expense', category:'豆漿', note:'早餐', amount:60, updated_at: new Date().toISOString()},
-      {id:'a5', date: daysAgo(2), type:'expense', category:'鼎宇', note:'材料', amount:300, updated_at: new Date().toISOString()},
-      {id:'a6', date: daysAgo(3), type:'expense', category:'靜電機保養', note:'維護', amount:500, updated_at: new Date().toISOString()},
-      {id:'a7', date: daysAgo(4), type:'expense', category:'補POS', note:'補貨', amount:200, updated_at: new Date().toISOString()},
-      {id:'a8', date: daysAgo(5), type:'expense', category:'廣弘', note:'食材', amount:150, updated_at: new Date().toISOString()},
-      {id:'a9', date: daysAgo(6), type:'expense', category:'蔬果', note:'青菜', amount:90, updated_at: new Date().toISOString()},
-      {id:'a10',date: daysAgo(7), type:'expense', category:'五金', note:'耗材', amount:75, updated_at: new Date().toISOString()},
-      {id:'a11',date: daysAgo(8), type:'expense', category:'咖啡', note:'豆子', amount:220, updated_at: new Date().toISOString()},
-    ];
-  }
-
-  // 首次渲染
-  render();
-
-  // ====== 導出在「新增成功」後呼叫：回到第一頁再重繪 ======
-  window.goFirstPage = function(){ CURRENT_PAGE = 1; render(); };
-</script>
-</body>
-</html>
-
+<!-- 新增/編輯 Modal -->
+<div class="modal" id="entryModal" aria-hidden="true">
+  <div class="dialog" ro
