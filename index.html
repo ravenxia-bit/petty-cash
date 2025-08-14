@@ -321,14 +321,16 @@ async function deleteEntry(id) {
 /* ====== 狀態 ====== */
 let entries = [];
 let editingId = null;
-let role = localStorage.getItem(LS_ROLE) || '';
+const VALID_ROLES = new Set(['guest','admin']);
+let role = localStorage.getItem(LS_ROLE);
+if (!VALID_ROLES.has(role)) { role = ''; localStorage.removeItem(LS_ROLE); }
 let loadedAll = false;
 
 /* 分頁狀態 */
 let pageSize = 10;
 let currentPage = 1;
 
-/* 分類（admin 表單多「差額調整」） */
+/* 分類 */
 const INCOME_CATS  = ['零用金','其他'];
 const EXPENSE_CATS = ['雞蛋','蔬果','冰壞','豆漿','鼎宇','廣弘','咖啡','牛奶','五金','靜電機保養','補POS','其他'];
 
@@ -526,34 +528,105 @@ function render(){
     else { list.style.display='none'; tbody.innerHTML = pageRows.map(rowToHTML).join(''); }
   }
 
-  $('#totalInfo').textContent = `共 ${total} 筆`;
-  $('#pageInput').value = String(currentPage);
-  $('#pageTotal').textContent = `/ ${pages}`;
+  // === 這裡改成對齊你現在的分頁 DOM ===
+  const pager = $('#pager');
+  if (pager) pager.style.display = total ? '' : 'none';
+
+  const totalCountEl = $('#totalCount');
+  if (totalCountEl) totalCountEl.textContent = String(total);
+
+  const pageInfoEl = $('#pageInfo');
+  if (pageInfoEl) pageInfoEl.textContent = `/ ${pages}`;
+
+  const pageInputEl = $('#pageInput');
+  if (pageInputEl) pageInputEl.value = String(currentPage);
 }
 
 
-/* ====== 登入 ====== */
+
+/* ====== 登入（穩定關閉版） ====== */
 const ADMIN_PASS = 'ssY@94540923';
-function openLogin(){ const m = $('#loginModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false'); $('#adminForm').style.display='none'; }
-function closeLogin(){ const m = $('#loginModal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); $('#adminPwd').value=''; }
-$('#loginBtn').addEventListener('click', openLogin);
-$('#logoutBtn').addEventListener('click', ()=>{ setRole(''); openLogin(); });
-$('#asGuest').addEventListener('click', ()=>{ $('#adminForm').style.display='none'; setRole('guest'); closeLogin(); });
-$('#asAdmin').addEventListener('click', ()=>{ $('#adminForm').style.display='grid'; $('#adminPwd').focus(); });
-$('#loginCancel').addEventListener('click', closeLogin);
-$('#loginOk').addEventListener('click', ()=>{
-  if($('#adminForm').style.display!=='none'){
-    const ok = ($('#adminPwd').value === ADMIN_PASS);
-    if(!ok){ alert('密碼錯誤'); return; }
-    setRole('admin'); closeLogin();
-    if(document.getElementById('entryModal').classList.contains('show')){
-      populateCategoryForForm($('#fType').value, $('#fCategory').value);
-      applyNoteRequired();
-    }
-  }else{
-    setRole('guest'); closeLogin();
+let pendingRole = ''; // 'guest' 或 'admin'
+
+function openLogin(){
+  const m = document.getElementById('loginModal');
+  pendingRole = '';
+  document.getElementById('adminForm').style.display = 'none';
+  document.getElementById('adminPwd').value = '';
+  m.style.display = '';                // 先清掉 inline
+  m.classList.add('show');             // 套用顯示
+  m.setAttribute('aria-hidden','false');
+}
+function closeLogin(){
+  const m = document.getElementById('loginModal');
+  m.classList.remove('show');          // 拔掉顯示用 class
+  m.setAttribute('aria-hidden','true');
+  m.style.display = 'none';            // 強制隱藏（避免任何覆蓋）
+  document.getElementById('adminPwd').value = '';
+  pendingRole = '';
+  // 避免焦點還留在被關閉的對話框裡
+  if (document.activeElement) document.activeElement.blur();
+}
+
+// 相關按鈕一律當一般按鈕，避免 submit
+['loginBtn','logoutBtn','asGuest','asAdmin','loginCancel','loginOk'].forEach(id=>{
+  const el = document.getElementById(id);
+  if (el) el.setAttribute('type','button');
+});
+
+document.getElementById('loginBtn').addEventListener('click', (e)=>{ e.preventDefault(); openLogin(); });
+document.getElementById('logoutBtn').addEventListener('click', (e)=>{ e.preventDefault(); setRole(''); openLogin(); });
+
+// 訪客：直接套用並關閉
+document.getElementById('asGuest').addEventListener('click', (e)=>{
+  e.preventDefault();
+  pendingRole = 'guest';
+  document.getElementById('adminForm').style.display = 'none';
+  setRole('guest');
+  closeLogin();
+});
+
+// 管理者：展開密碼欄，等按確認
+document.getElementById('asAdmin').addEventListener('click', (e)=>{
+  e.preventDefault();
+  pendingRole = 'admin';
+  document.getElementById('adminForm').style.display = 'grid';
+  document.getElementById('adminPwd').focus();
+});
+
+document.getElementById('loginCancel').addEventListener('click', (e)=>{ e.preventDefault(); closeLogin(); });
+
+// 確認：依 pendingRole 處理，未選視為訪客
+document.getElementById('loginOk').addEventListener('click', (e)=>{
+  e.preventDefault();
+  if (pendingRole === 'admin'){
+    const ok = (document.getElementById('adminPwd').value === ADMIN_PASS);
+    if (!ok){ alert('密碼錯誤'); return; }
+    setRole('admin');
+  } else {
+    setRole('guest');
+  }
+  closeLogin();
+  // 若新增/編輯視窗已開，更新一次分類與備註規則
+  if (document.getElementById('entryModal').classList.contains('show')){
+    populateCategoryForForm(document.getElementById('fType').value, document.getElementById('fCategory').value);
+    applyNoteRequired();
   }
 });
+
+// 點遮罩關閉（點到外層才關）
+document.getElementById('loginModal').addEventListener('click', (e)=>{
+  if (e.target === e.currentTarget) closeLogin();
+});
+
+// Esc 關閉
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape' && document.getElementById('loginModal').classList.contains('show')){
+    closeLogin();
+  }
+});
+
+
 
 /* ====== 新增/編輯 ====== */
 function openEntry(editItem){
