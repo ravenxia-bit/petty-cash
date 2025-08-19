@@ -67,7 +67,6 @@ tr:hover td{background:#0a1422}
   .toolbar{flex-direction:column}
   .range-group{flex-direction:column;align-items:stretch}
   .range-tilde{display:none}
-  .range-row.end .lbl::before{content:"~ ";color:var(--muted)}
   .table-wrap{border:none;background:transparent}
   table{display:none}
   .list{display:grid;gap:10px}
@@ -104,6 +103,59 @@ input[type="text"], input[type="number"], input[type="date"], select{
 /* loading */
 .loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:12000}
 .loading.show{display:flex}
+
+/* ★ 扣POS 排版（放在「金額」右側、金額維持滿寬） */
+.amount-row{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "label label"
+    "amount pos";
+  align-items:center;
+  gap:10px;
+}
+.amount-row > label{ grid-area:label; }
+.amount-row > #fAmount{ grid-area:amount; }
+.pos-wrap{ grid-area:pos; display:flex; align-items:center; gap:.5rem; white-space:nowrap; }
+.pos-wrap input[type="checkbox"]{ width:20px; height:20px; }
+
+/* 讓「扣POS」與右欄的「備註」左邊界對齊 */
+#entryModal .body .form-row.inline > .form-row.pos-col{
+  justify-self: start;          /* 右欄這個 grid item 靠左貼齊欄位 */
+  align-self: end;              /* 與金額輸入同一水平線（可保留/移除） */
+}
+
+#entryModal .body .form-row.inline > .form-row.pos-col .pos-wrap{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0;
+  padding: 0;                   /* 清掉任何內距 */
+}
+
+#entryModal .body .form-row.inline > .form-row.pos-col .pos-wrap input[type="checkbox"]{
+  margin: 0;                    /* 取消瀏覽器預設外距 */
+  transform: translateX(-2px);  /* 微調對齊；可依需要改成 -1 ~ -3px */
+}
+
+/* 讓「扣POS」整格與「金額」欄位上緣對齊 */
+#entryModal .body .form-row.inline > .form-row.pos-col{
+  justify-self: start;   /* 左對齊 */
+  align-self: start;     /* 上對齊（原本若設 end 請改成 start） */
+}
+
+/* 若你想讓勾選框和【金額的輸入框上緣】對齊（而不是和「金額」標籤上緣），
+   再加這行並微調數值 24~30px 之間到你覺得剛好為止： */
+#entryModal .body .form-row.inline > .form-row.pos-col{ margin-top: 26px; }
+
+/* 右欄內部排版＆去掉預設外距，避免看起來偏移 */
+#entryModal .body .form-row.inline > .form-row.pos-col .pos-wrap{
+  display:flex; align-items:center; gap:.5rem; margin:0; padding:0;
+}
+#entryModal .body .form-row.inline > .form-row.pos-col .pos-wrap input[type="checkbox"]{
+  margin:0;
+}
+
 </style>
 </head>
 <body>
@@ -239,17 +291,25 @@ input[type="text"], input[type="number"], input[type="date"], select{
           <div class="muted" id="noteHint"></div>
         </div>
       </div>
+      <!-- ★ 金額列：右邊多放扣POS（僅調整扣POS區塊） -->
+      <div class="form-row inline">
       <div class="form-row">
         <label class="req">金額</label>
         <input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="請輸入金額" required />
-      </div>
+        </div>
+        <div class="form-row pos-col">
+        <label class="pos-wrap"><input id="posFlag" type="checkbox" /> <span>扣POS</span></label>
+      
     </div>
+        </div>  <!-- 金額列 .form-row inline 結束 -->
+  </div>    <!-- ★ 這行是缺的：關閉 #entryModal 的 .body -->
     <footer>
       <button class="btn-ghost" id="cancelBtn" type="button">取消</button>
       <button class="btn-primary" id="saveBtn" type="button">儲存</button>
     </footer>
-  </div>
-</div>
+  </div>    <!-- .dialog -->
+</div>      <!-- #entryModal -->
+
 
 <!-- 登入 Modal -->
 <div class="modal login" id="loginModal" aria-hidden="true">
@@ -294,13 +354,16 @@ const postForm = (payload) =>
   }).then(async r => { try { return await r.json(); } catch { return { ok:false, error:'bad json' }; } });
 
 /* ====== API ====== */
+const coercePos = v => (v===true || v===1 || v==='1' || String(v||'').toLowerCase()==='true');
+
 async function listEntries(params = {}) {
   const qs = new URLSearchParams({ action: 'list', ...params });
   const res = await fetch(API_URL + '?' + qs.toString(), { method: 'GET' }).catch(()=>null);
   if (!res) throw new Error('network');
   const json = await res.json().catch(()=>({ok:false,error:'bad json'}));
   if (!json.ok) throw new Error(json.error || 'list failed');
-  return json.rows || [];
+  const rows = json.rows || [];
+  return rows.map(r => ({ ...r, pos: coercePos(r.pos) }));
 }
 async function addEntry(row) {
   const json = await postForm({ action: 'add', row });
@@ -337,11 +400,8 @@ const $ = s => document.querySelector(s);
 const isMobile = () => matchMedia('(max-width:720px)').matches;
 const fmtMoney = n => (n||0).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2});
 const todayStr = () => {
-  // 以 Asia/Taipei 取今天的 YYYY-MM-DD（避免 UTC 跨日）
   try{
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit'
-    }).format(new Date());
+    return new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
   }catch(_){
     const dt=new Date(); const p=n=>String(n).padStart(2,'0');
     return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
@@ -364,10 +424,10 @@ function setRole(next){
 function getCurrentMonthRange(){
   const now = new Date();
   const y = now.getFullYear();
-  const m = now.getMonth() + 1; // 1~12
+  const m = now.getMonth() + 1;
   const pad = n => String(n).padStart(2,'0');
   const start = `${y}-${pad(m)}-01`;
-  const lastDay = new Date(y, m, 0).getDate(); // 當月最後一天
+  const lastDay = new Date(y, m, 0).getDate();
   const end = `${y}-${pad(m)}-${pad(lastDay)}`;
   return { start, end };
 }
@@ -433,7 +493,7 @@ function applyNoteRequired(){
     : (type==='income' ? '收入／零用金：備註可留白' : '支出／非「其他」：備註可留白');
 }
 
-/* ====== 前端即時篩選（字串比較用 YYYY-MM-DD） ====== */
+/* ====== 前端即時篩選 ====== */
 function applyFilters(list){
   const sText = $('#dateStart').value.trim();
   const eText = $('#dateEnd').value.trim();
@@ -454,11 +514,12 @@ function applyFilters(list){
 
 /* ====== 渲染 + 分頁 ====== */
 function calcSummary(list){
-  const sumIn = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  const sumOut= list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-  $('#sumIn').textContent = fmtMoney(sumIn);
-  $('#sumOut').textContent = fmtMoney(sumOut);
-  $('#balance').textContent = fmtMoney(sumIn - sumOut);
+  const sumIn  = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+  const sumOut = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+  const posAmt = list.filter(x=>x.type==='expense' && x.pos===true).reduce((s,x)=>s+x.amount,0);
+  document.getElementById('sumIn').textContent = fmtMoney(sumIn);
+  document.getElementById('sumOut').textContent = fmtMoney(sumOut);
+  document.getElementById('balance').textContent = fmtMoney(sumIn - sumOut + posAmt);
 }
 function rowToHTML(item){
   const moneyClass = item.type==='income'?'in':'out';
@@ -505,7 +566,6 @@ function render(){
   const sorted = entries.slice().sort((a,b)=> b.date.localeCompare(a.date));
   const filtered = applyFilters(sorted);
 
-  // 無條件時只統計「本月」
   let forSummary = filtered;
   if (isNoQuery()) {
     const { start, end } = getCurrentMonthRange();
@@ -532,16 +592,16 @@ function render(){
 
   const pager = $('#pager');
   if (pager) pager.style.display = total ? '' : 'none';
-  $('#totalCount').textContent = String(total);
-  $('#pageInfo').textContent = `/ ${pages}`;
-  $('#pageInput').value = String(currentPage);
+  document.getElementById('totalCount').textContent = String(total);
+  document.getElementById('pageInfo').textContent = `/ ${pages}`;
+  document.getElementById('pageInput').value = String(currentPage);
 }
 
-/* ====== 後端查詢（避免日期格式不一） ====== */
+/* ====== 後端查詢（日期格式統一） ====== */
 async function performSearch(){
   const sText = $('#dateStart').value.trim();
   const eText = $('#dateEnd').value.trim();
-  const start = ymdToDashed(sText);   // 統一成 YYYY-MM-DD
+  const start = ymdToDashed(sText);
   const end   = ymdToDashed(eText);
   const type = $('#typeFilter').value;
   const category = $('#categoryFilter').value;
@@ -551,7 +611,7 @@ async function performSearch(){
   try {
     const rows = await listEntries({ start, end, type, category, kw });
     entries = rows; loadedAll = true; currentPage = 1;
-    $('#loadHint').style.display = 'none';
+    document.getElementById('loadHint').style.display = 'none';
     render(); saveCache();
   } catch (err) {
     alert('查詢失敗：' + err.message);
@@ -560,24 +620,24 @@ async function performSearch(){
   }
 }
 
-/* ====== 登入（穩定關閉版） ====== */
+/* ====== 登入 ====== */
 const ADMIN_PASS = 'ssY@94540923';
-let pendingRole = ''; // 'guest' 或 'admin'
+let pendingRole = '';
 
 function openLogin(){
   const m = document.getElementById('loginModal');
   pendingRole = '';
   document.getElementById('adminForm').style.display = 'none';
   document.getElementById('adminPwd').value = '';
-  m.style.display = '';                // 清掉 inline
-  m.classList.add('show');             // 顯示
+  m.style.display = '';
+  m.classList.add('show');
   m.setAttribute('aria-hidden','false');
 }
 function closeLogin(){
   const m = document.getElementById('loginModal');
   m.classList.remove('show');
   m.setAttribute('aria-hidden','true');
-  m.style.display = 'none';            // 強制隱藏
+  m.style.display = 'none';
   document.getElementById('adminPwd').value = '';
   pendingRole = '';
   if (document.activeElement) document.activeElement.blur();
@@ -586,7 +646,6 @@ function closeLogin(){
 document.getElementById('loginBtn').addEventListener('click', (e)=>{ e.preventDefault(); openLogin(); });
 document.getElementById('logoutBtn').addEventListener('click', (e)=>{ e.preventDefault(); setRole(''); openLogin(); });
 
-// 訪客：直接套用並關閉
 document.getElementById('asGuest').addEventListener('click', (e)=>{
   e.preventDefault();
   pendingRole = 'guest';
@@ -594,7 +653,6 @@ document.getElementById('asGuest').addEventListener('click', (e)=>{
   setRole('guest');
   closeLogin();
 });
-// 管理者：展開密碼欄
 document.getElementById('asAdmin').addEventListener('click', (e)=>{
   e.preventDefault();
   pendingRole = 'admin';
@@ -602,7 +660,6 @@ document.getElementById('asAdmin').addEventListener('click', (e)=>{
   document.getElementById('adminPwd').focus();
 });
 document.getElementById('loginCancel').addEventListener('click', (e)=>{ e.preventDefault(); closeLogin(); });
-// 確認
 document.getElementById('loginOk').addEventListener('click', (e)=>{
   e.preventDefault();
   if (pendingRole === 'admin'){
@@ -618,40 +675,55 @@ document.getElementById('loginOk').addEventListener('click', (e)=>{
     applyNoteRequired();
   }
 });
-// 點遮罩關閉
 document.getElementById('loginModal').addEventListener('click', (e)=>{ if (e.target === e.currentTarget) closeLogin(); });
-// Esc 關
 document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && document.getElementById('loginModal').classList.contains('show')) closeLogin(); });
 
 /* ====== 新增/編輯 ====== */
+function applyPosRule(){
+  const t = $('#fType').value;
+  const cb = $('#posFlag');
+  if (!cb) return;
+  if (t === 'income'){
+    cb.checked = false;
+    cb.disabled = true;
+    cb.title = '收入不可勾選扣POS';
+  } else {
+    cb.disabled = false;
+    cb.title = '';
+  }
+}
+
 function openEntry(editItem){
   const modal = $('#entryModal');
   modal.style.display = '';
   modal.classList.add('show');
   modal.setAttribute('aria-hidden','false');
 
-  const d = $('#fDate'), t = $('#fType'), n = $('#fNote'), a = $('#fAmount');
+  const d = $('#fDate'), t = $('#fType'), n = $('#fNote'), a = $('#fAmount'), p = $('#posFlag');
   if(editItem){
-    $('#dlgTitle').textContent = '編輯紀錄';
+    document.getElementById('dlgTitle').textContent = '編輯紀錄';
     editingId = editItem.id;
     t.value = editItem.type;
     populateCategoryForForm(t.value, editItem.category);
     d.value = editItem.date;
-    $('#fDateFallback').value = d.value;
-    n.value = editItem.note||'';
+    document.getElementById('fDateFallback').value = d.value;
+    n.value = (editItem.note||'');
     a.value = editItem.amount;
+    if (p){ p.checked = !!editItem.pos; }
   }else{
-    $('#dlgTitle').textContent = '新增紀錄';
+    document.getElementById('dlgTitle').textContent = '新增紀錄';
     editingId = null;
     t.value = 'expense';
     populateCategoryForForm('expense', null);
-    const today = todayStr();          // Asia/Taipei 的今天
+    const today = todayStr();
     d.value = today;
-    $('#fDateFallback').value = today;
+    document.getElementById('fDateFallback').value = today;
     n.value = '';
     a.value = '';
+    if (p){ p.checked = false; }
   }
   applyNoteRequired();
+  applyPosRule();
   setTimeout(()=>$('#fDate').focus(), 0);
 }
 function closeEntry(){
@@ -661,12 +733,15 @@ function closeEntry(){
   m.style.display = 'none';
 }
 
-$('#addBtn').addEventListener('click', ()=> openEntry(null));
-$('#cancelBtn').addEventListener('click', closeEntry);
-$('#fType').addEventListener('change', ()=>{ populateCategoryForForm($('#fType').value, null); applyNoteRequired(); });
-$('#fCategory').addEventListener('change', applyNoteRequired);
+document.getElementById('addBtn').addEventListener('click', ()=> openEntry(null));
+document.getElementById('cancelBtn').addEventListener('click', closeEntry);
+document.getElementById('fType').addEventListener('change', ()=>{
+  populateCategoryForForm(document.getElementById('fType').value, null);
+  applyNoteRequired();
+  applyPosRule();
+});
+document.getElementById('fCategory').addEventListener('change', applyNoteRequired);
 
-// 新增紀錄日曆按鈕：支援 showPicker 與 fallback
 document.getElementById('openFDateCal').addEventListener('click', ()=>{
   const d = document.getElementById('fDate');
   const fb = document.getElementById('fDateFallback');
@@ -675,12 +750,14 @@ document.getElementById('openFDateCal').addEventListener('click', ()=>{
   if (fb) { try { fb.focus(); fb.click(); } catch(_){ } }
 });
 
-$('#saveBtn').addEventListener('click', async ()=>{
-  const date = $('#fDate').value;
-  const type = $('#fType').value;
-  const category = $('#fCategory').value;
-  const note = $('#fNote').value.trim();
-  const amount = parseFloat($('#fAmount').value);
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const date = document.getElementById('fDate').value;
+  const type = document.getElementById('fType').value;
+  const category = document.getElementById('fCategory').value;
+  const note = document.getElementById('fNote').value.trim();
+  const amount = parseFloat(document.getElementById('fAmount').value);
+  const pos = (type === 'expense') && document.getElementById('posFlag') && document.getElementById('posFlag').checked;
+
   if(!date) return alert('請選擇日期');
   if(!type) return alert('請選擇類型');
   if(!category) return alert('請選擇分類');
@@ -691,19 +768,18 @@ $('#saveBtn').addEventListener('click', async ()=>{
     if(role !== 'admin'){ alert('訪客模式不可編輯'); return; }
     const idx = entries.findIndex(x=>x.id===editingId);
     const backup = idx>-1 ? {...entries[idx]} : null;
-    if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount }; render(); saveCache(); }
+    if(idx>-1){ entries[idx] = { ...entries[idx], date, type, category, note, amount, pos }; render(); saveCache(); }
     closeEntry();
-    try{ await updateEntry(editingId, { date, type, category, note, amount }); }
+    try{ await updateEntry(editingId, { date, type, category, note, amount, pos }); }
     catch(e){ if(backup){ entries[idx]=backup; render(); saveCache(); } alert('更新失敗：' + e.message); }
     return;
   }
 
-  // 樂觀新增
   const tempId = 'tmp-' + Math.random().toString(36).slice(2);
-  const temp = { id: tempId, date, type, category, note, amount };
+  const temp = { id: tempId, date, type, category, note, amount, pos };
   entries.unshift(temp); render(); saveCache(); closeEntry();
   try{
-    const realId = await addEntry({ date, type, category, note, amount });
+    const realId = await addEntry({ date, type, category, note, amount, pos });
     const i = entries.findIndex(x => x.id === tempId);
     if (i > -1) entries[i].id = realId;
     render(); saveCache();
@@ -784,19 +860,19 @@ bindDatePair('#dateStart','#dateStartPicker','#openCalStart');
 bindDatePair('#dateEnd','#dateEndPicker','#openCalEnd');
 
 /* ====== 其餘篩選事件 ====== */
-$('#typeFilter').addEventListener('input', ()=>{
-  const prev = $('#categoryFilter').value;
-  populateFilterCategories($('#typeFilter').value, prev);
+document.getElementById('typeFilter').addEventListener('input', ()=>{
+  const prev = document.getElementById('categoryFilter').value;
+  populateFilterCategories(document.getElementById('typeFilter').value, prev);
   currentPage = 1; render();
 });
-['categoryFilter','kw'].forEach(id=> $('#'+id).addEventListener('input', ()=>{ currentPage=1; render(); }));
-$('#doSearch').addEventListener('click', performSearch);
-$('#clearFilters').addEventListener('click', async ()=>{
-  ['dateStart','dateEnd'].forEach(id=>{ const t=$('#'+id); t.value=''; t.classList.remove('invalid'); });
-  ['dateStartPicker','dateEndPicker'].forEach(id=> $('#'+id).value='');
-  $('#typeFilter').value='';
+['categoryFilter','kw'].forEach(id=> document.getElementById(id).addEventListener('input', ()=>{ currentPage=1; render(); }));
+document.getElementById('doSearch').addEventListener('click', performSearch);
+document.getElementById('clearFilters').addEventListener('click', async ()=>{
+  ['dateStart','dateEnd'].forEach(id=>{ const t=document.getElementById(id); t.value=''; t.classList.remove('invalid'); });
+  ['dateStartPicker','dateEndPicker'].forEach(id=> document.getElementById(id).value='');
+  document.getElementById('typeFilter').value='';
   populateFilterCategories('', '');
-  $('#kw').value='';
+  document.getElementById('kw').value='';
   currentPage=1;
 
   try{
@@ -804,7 +880,7 @@ $('#clearFilters').addEventListener('click', async ()=>{
     const fresh = await listEntries({ limit: INITIAL_LIMIT });
     entries = fresh;
     loadedAll = false;
-    $('#loadHint').style.display = 'block';
+    document.getElementById('loadHint').style.display = 'block';
     render(); saveCache();
   }catch(err){
     render();
@@ -814,25 +890,25 @@ $('#clearFilters').addEventListener('click', async ()=>{
 });
 
 /* ====== 分頁控制 ====== */
-$('#pageSize').addEventListener('change', ()=>{ pageSize = parseInt($('#pageSize').value,10) || 10; currentPage = 1; render(); });
-$('#pageInput').addEventListener('change', ()=>{
+document.getElementById('pageSize').addEventListener('change', ()=>{ pageSize = parseInt(document.getElementById('pageSize').value,10) || 10; currentPage = 1; render(); });
+document.getElementById('pageInput').addEventListener('change', ()=>{
   const total = applyFilters(entries.slice().sort((a,b)=> b.date.localeCompare(a.date))).length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  let p = parseInt($('#pageInput').value,10);
+  let p = parseInt(document.getElementById('pageInput').value,10);
   if(isNaN(p) || p<1) p = 1;
   if(p>pages) p = pages;
   currentPage = p;
   render();
 });
-$('#prevPage').addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); }});
-$('#nextPage').addEventListener('click', ()=>{
+document.getElementById('prevPage').addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); }});
+document.getElementById('nextPage').addEventListener('click', ()=>{
   const total = applyFilters(entries.slice().sort((a,b)=> b.date.localeCompare(a.date))).length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if(currentPage<pages){ currentPage++; render(); }
 });
 
 /* ====== 匯出 / 匯入 / 載入全部 ====== */
-$('#exportBtn').addEventListener('click', async ()=>{
+document.getElementById('exportBtn').addEventListener('click', async ()=>{
   if (role !== 'admin') { alert('只有管理者可匯出'); return; }
   try{
     const all = await listEntries();
@@ -842,7 +918,7 @@ $('#exportBtn').addEventListener('click', async ()=>{
     URL.revokeObjectURL(url);
   }catch(err){ alert('匯出失敗：' + err.message); }
 });
-$('#importInput').addEventListener('change', async (e)=>{
+document.getElementById('importInput').addEventListener('change', async (e)=>{
   if (role !== 'admin') { alert('只有管理者可匯入'); e.target.value=''; return; }
   const file = e.target.files[0]; if(!file) return;
   try{
@@ -851,7 +927,7 @@ $('#importInput').addEventListener('change', async (e)=>{
     const data = JSON.parse(text);
     if(!Array.isArray(data)) throw new Error('格式不正確，需為陣列');
     for (const r0 of data){
-      const r = { date: r0.date, type: r0.type, category: r0.category, note: r0.note || '', amount: Number(r0.amount)||0 };
+      const r = { date: r0.date, type: r0.type, category: r0.category, note: r0.note || '', amount: Number(r0.amount)||0, pos: coercePos(r0.pos) };
       const id = await addEntry(r);
       entries.unshift({ id, ...r });
     }
@@ -860,14 +936,14 @@ $('#importInput').addEventListener('change', async (e)=>{
   }catch(err){ alert('匯入失敗：'+err.message); }
   finally{ e.target.value=''; showLoading(false); }
 });
-$('#loadAllBtn').addEventListener('click', async ()=>{
+document.getElementById('loadAllBtn').addEventListener('click', async ()=>{
   if (loadedAll) return;
   try{
     showLoading(true);
     const all = await listEntries();
     entries = all;
     loadedAll = true;
-    $('#loadHint').style.display = 'none';
+    document.getElementById('loadHint').style.display = 'none';
     currentPage = 1;
     render(); saveCache();
   }catch(err){ alert('載入全部失敗：' + err.message); }
@@ -881,33 +957,30 @@ function boot(){
   setRole(role || '');
   if(!role) openLogin();
 
-  // 先畫快取
   try{
     const cached = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
     if (cached && Array.isArray(cached.rows) && cached.rows.length) {
       entries = cached.rows;
       loadedAll = (cached.limit ? false : true);
-      $('#loadHint').style.display = cached.limit ? 'block' : 'none';
+      document.getElementById('loadHint').style.display = cached.limit ? 'block' : 'none';
       render();
     } else { entries = []; render(); }
   }catch{ entries=[]; render(); }
 
-  // 背景更新（預設 300 筆）
   (async ()=>{
     try{
       const fresh = await listEntries({ limit: INITIAL_LIMIT });
-      entries = fresh; loadedAll = false; $('#loadHint').style.display = 'block'; currentPage = 1;
+      entries = fresh; loadedAll = false; document.getElementById('loadHint').style.display = 'block'; currentPage = 1;
       render(); saveCache();
     }catch(err){
       console.warn('listEntries failed:', err);
       if(!entries.length){
-        $('#empty').style.display='block';
-        $('#empty').textContent='讀取失敗，請稍後重試';
+        document.getElementById('empty').style.display='block';
+        document.getElementById('empty').textContent='讀取失敗，請稍後重試';
       }
     }
   })();
 
-  // RWD 重繪
   const mq = window.matchMedia('(max-width:720px)');
   (mq.addEventListener ? mq.addEventListener('change', render) : mq.addListener(render));
   let _rszTimer; window.addEventListener('resize', ()=>{ clearTimeout(_rszTimer); _rszTimer = setTimeout(render, 120); });
@@ -917,4 +990,3 @@ document.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
-
