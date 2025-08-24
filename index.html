@@ -27,11 +27,11 @@ button:hover{border-color:#244b63}
 .calendar-btn:hover{border-color:#244b63}
 .invalid{border-color:var(--danger)!important; outline: none}
 
-.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 8px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0 8px;}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
 .card h3{margin:0 0 4px;font-size:13px;color:var(--muted)}
 .card .val{font-size:22px;font-weight:700}
-.val.in{color:var(--ok)} .val.out{color:var(--danger)} .val.bal{color:var(--acc)}
+.val.in{color:var(--ok)} .val.out{color:var(--danger)} .val.bal{color:var(--acc)} .val.pos{ color: var(--acc); font-weight:700 }
 .hint{margin:0 0 12px}
 
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
@@ -177,10 +177,27 @@ input[type="text"], input[type="number"], input[type="date"], select{
 </header>
 
 <section class="summary">
-  <div class="card"><h3>總收入（目前載入）</h3><div class="val in" id="sumIn">0</div></div>
-  <div class="card"><h3>總支出（目前載入）</h3><div class="val out" id="sumOut">0</div></div>
-  <div class="card"><h3>結餘（目前載入）</h3><div class="val bal" id="balance">0</div></div>
+  <!-- 只有管理者可見 -->
+  <div class="card admin-only" id="sumInCard">
+    <h3>總收入（目前載入）</h3><div class="val in" id="sumIn">0</div>
+  </div>
+  <div class="card admin-only" id="sumOutCard">
+    <h3>總支出（目前載入）</h3><div class="val out" id="sumOut">0</div>
+  </div>
+
+  <!-- 所有人可見：零用金總額（原本的「結餘」） -->
+  <div class="card" id="balCard">
+    <h3>零用金總額（目前載入）</h3><div class="val bal" id="balance">0</div>
+  </div>
+
+  <!-- 所有人可見：扣POS 總計 -->
+  <div class="card" id="posTotalCard">
+    <h3>扣POS 總計（目前載入）</h3>
+    <div class="val pos" id="posTotal">0</div>
+  </div>
 </section>
+
+
 <p class="muted hint" id="loadHint" style="display:none">目前僅載入最近資料。若需完整統計，請點右上角「載入全部」。</p>
 
 <!-- ===== 篩選工具列（日期區間 + 查詢鈕） ===== -->
@@ -414,12 +431,20 @@ function setRole(next){
   role = next; localStorage.setItem(LS_ROLE, role);
   $('#roleBadge').textContent = role ? (role==='admin' ? '管理者' : '訪客') : '未登入';
   $('#logoutBtn').style.display = role ? '' : 'none';
+
   const showDataIO = (role === 'admin');
   $('#exportBtn').style.display = showDataIO ? '' : 'none';
   $('#importWrap').style.display = showDataIO ? '' : 'none';
+
+  // ★ 新增：只有管理者能看到的三張卡片
+  document.querySelectorAll('.admin-only').forEach(el=>{
+    el.style.display = (role === 'admin') ? '' : 'none';
+  });
+
   populateFilterCategories($('#typeFilter').value, $('#categoryFilter').value);
   render();
 }
+
 
 function getCurrentMonthRange(){
   const now = new Date();
@@ -514,13 +539,22 @@ function applyFilters(list){
 
 /* ====== 渲染 + 分頁 ====== */
 function calcSummary(list){
-  const sumIn  = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  const sumOut = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-  const posAmt = list.filter(x=>x.type==='expense' && x.pos===true).reduce((s,x)=>s+x.amount,0);
-  document.getElementById('sumIn').textContent = fmtMoney(sumIn);
+  const sumIn   = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+  const sumOut  = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+  const posSpent = list
+    .filter(x=>x.type==='expense' && x.pos===true)
+    .reduce((s,x)=>s+x.amount,0);
+  const posReimb = list
+    .filter(x=>x.type==='expense' && x.category==='補POS')
+    .reduce((s,x)=>s+x.amount,0);
+  const posNet = posSpent - posReimb;
+  document.getElementById('sumIn').textContent  = fmtMoney(sumIn);
   document.getElementById('sumOut').textContent = fmtMoney(sumOut);
-  document.getElementById('balance').textContent = fmtMoney(sumIn - sumOut + posAmt);
+  document.getElementById('balance').textContent= fmtMoney(sumIn - sumOut + posSpent);
+  // 顯示「扣POS 總計」（所有人可看）
+  document.getElementById('posTotal').textContent = fmtMoney(posNet);
 }
+
 function rowToHTML(item){
   const moneyClass = item.type==='income'?'in':'out';
   const disableActions = (role !== 'admin');
