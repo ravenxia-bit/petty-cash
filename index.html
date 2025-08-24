@@ -412,6 +412,9 @@ let currentPage = 1;
 const INCOME_CATS  = ['零用金','其他'];
 const EXPENSE_CATS = ['雞蛋','蔬果','冰塊','豆漿','鼎宇','廣弘','咖啡','牛奶','五金','靜電機保養','補POS','其他'];
 
+// 扣POS 折抵起算日（用 yyyy-MM-dd；與資料同格式便可直接做字串比較）
+const POS_REFILL_CUTOFF = '2025-08-21';
+
 /* ====== Helpers ====== */
 const $ = s => document.querySelector(s);
 const isMobile = () => matchMedia('(max-width:720px)').matches;
@@ -539,21 +542,36 @@ function applyFilters(list){
 
 /* ====== 渲染 + 分頁 ====== */
 function calcSummary(list){
-  const sumIn   = list.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  const sumOut  = list.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+  const sumIn  = list.filter(x=>x.type==='income')
+                     .reduce((s,x)=>s+x.amount,0);
+  const sumOut = list.filter(x=>x.type==='expense')
+                     .reduce((s,x)=>s+x.amount,0);
+
+  // A. 支出 & 勾選扣POS 的總和
   const posSpent = list
-    .filter(x=>x.type==='expense' && x.pos===true)
+    .filter(x => x.type==='expense' && x.pos===true)
     .reduce((s,x)=>s+x.amount,0);
-  const posReimb = list
-    .filter(x=>x.type==='expense' && x.category==='補POS')
+
+  // B. 支出 & 分類=補POS & 日期 > 2025-08-21 的總和
+  const posRefillAfter = list
+    .filter(x => x.type==='expense' && x.category==='補POS' && x.date > POS_REFILL_CUTOFF)
     .reduce((s,x)=>s+x.amount,0);
-  const posNet = posSpent - posReimb;
-  document.getElementById('sumIn').textContent  = fmtMoney(sumIn);
-  document.getElementById('sumOut').textContent = fmtMoney(sumOut);
-  document.getElementById('balance').textContent= fmtMoney(sumIn - sumOut + posSpent);
-  // 顯示「扣POS 總計」（所有人可看）
-  document.getElementById('posTotal').textContent = fmtMoney(posNet);
+
+  // 扣POS 總計 = A - B
+  const posTotal = posSpent - posRefillAfter;
+
+  // 更新數字
+  const $ = (id)=>document.getElementById(id);
+  if ($('sumIn'))  $('sumIn').textContent  = fmtMoney(sumIn);
+  if ($('sumOut')) $('sumOut').textContent = fmtMoney(sumOut);
+
+  // 「零用金總額」(結餘)：收入-支出+A(扣POS支出)
+  if ($('balance')) $('balance').textContent = fmtMoney(sumIn - sumOut + posSpent);
+
+  // 顯示扣POS 總計（不分權限）
+  if ($('posTotal')) $('posTotal').textContent = fmtMoney(posTotal);
 }
+
 
 function rowToHTML(item){
   const moneyClass = item.type==='income'?'in':'out';
