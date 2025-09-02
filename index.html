@@ -465,6 +465,11 @@ function getTodayRange(){
   return { start: t, end: t };
 }
 
+function hasDateQuery(){
+  const s = ymdToDashed($('#dateStart').value.trim());
+  const e = ymdToDashed($('#dateEnd').value.trim());
+  return !!(s || e);  // 只要有任一個有效日期就算有日期條件
+}
 
 function isNoQuery(){
   return !$('#dateStart').value.trim() &&
@@ -476,25 +481,14 @@ function isNoQuery(){
 
 // 產生「總計卡片」標題後綴（會變動）
 function summaryScopeText(){
-  // 有沒有任何查詢條件
-  const noQ = isNoQuery();
-
-  // 讀取日期欄位（文字輸入是 yyyymmdd）
-  const sText = $('#dateStart').value.trim();
-  const eText = $('#dateEnd').value.trim();
-
-  if (noQ){
-    // 無條件 → 以「今日」為範圍
-    return `（今日 ${todayStr()}）`;
-  }
-
-  // 有條件 → 如果有日期，就顯示區間；否則顯示「篩選中」
-  const s = ymdToDashed(sText);
-  const e = ymdToDashed(eText);
-  if (s || e){
-    return `（${s || '不限'} ~ ${e || '不限'}）`;
-  }
-  return '（篩選中）';
+const sText = $('#dateStart').value.trim();
+const eText = $('#dateEnd').value.trim();
+const s = ymdToDashed(sText);
+const e = ymdToDashed(eText);
+if (!hasDateQuery()){
+return `（不限 ~ 今日 ${todayStr()}）`;     // ← 新：沒日期=不限~今日
+}
+return `（${s || '不限'} ~ ${e || '不限'}）`;
 }
 
 // 套用後綴到 .summary 區塊所有卡片標題（會把任何既有的「（...）」替換掉）
@@ -657,10 +651,10 @@ function render(){
   const filtered = applyFilters(sorted);
 
   let forSummary = filtered;
-if (isNoQuery()) {
-  const { start, end } = getTodayRange();     // ← 改成今天
-  forSummary = filtered.filter(x => x.date >= start && x.date <= end);
-}
+  if (!hasDateQuery()) {                        // ← 新：沒輸入日期時
+  const end = todayStr();
+  forSummary = filtered.filter(x => x.date <= end);  // 「不限 ~ 今日」
+ }
 calcSummary(forSummary);
 
 // 動態標題（把 h3 的「（目前載入）」換成「（今日 ...）」或「（區間）」等）
