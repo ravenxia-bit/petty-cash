@@ -460,6 +460,12 @@ function getCurrentMonthRange(){
   return { start, end };
 }
 
+function getTodayRange(){
+  const t = todayStr(); // 已用 Asia/Taipei 輸出 yyyy-MM-dd
+  return { start: t, end: t };
+}
+
+
 function isNoQuery(){
   return !$('#dateStart').value.trim() &&
          !$('#dateEnd').value.trim() &&
@@ -467,6 +473,38 @@ function isNoQuery(){
          !$('#categoryFilter').value &&
          !$('#kw').value.trim();
 }
+
+// 產生「總計卡片」標題後綴（會變動）
+function summaryScopeText(){
+  // 有沒有任何查詢條件
+  const noQ = isNoQuery();
+
+  // 讀取日期欄位（文字輸入是 yyyymmdd）
+  const sText = $('#dateStart').value.trim();
+  const eText = $('#dateEnd').value.trim();
+
+  if (noQ){
+    // 無條件 → 以「今日」為範圍
+    return `（今日 ${todayStr()}）`;
+  }
+
+  // 有條件 → 如果有日期，就顯示區間；否則顯示「篩選中」
+  const s = ymdToDashed(sText);
+  const e = ymdToDashed(eText);
+  if (s || e){
+    return `（${s || '不限'} ~ ${e || '不限'}）`;
+  }
+  return '（篩選中）';
+}
+
+// 套用後綴到 .summary 區塊所有卡片標題（會把任何既有的「（...）」替換掉）
+function applySummaryTitleSuffix(suffix){
+  document.querySelectorAll('.summary .card h3').forEach(h=>{
+    const base = h.textContent.replace(/（.*?）/g, '').trim();
+    h.textContent = `${base} ${suffix}`;
+  });
+}
+
 
 // YYYYMMDD <-> YYYY-MM-DD
 function ymdToDashed(yyyymmdd){
@@ -619,11 +657,14 @@ function render(){
   const filtered = applyFilters(sorted);
 
   let forSummary = filtered;
-  if (isNoQuery()) {
-    const { start, end } = getCurrentMonthRange();
-    forSummary = filtered.filter(x => x.date >= start && x.date <= end);
-  }
-  calcSummary(forSummary);
+if (isNoQuery()) {
+  const { start, end } = getTodayRange();     // ← 改成今天
+  forSummary = filtered.filter(x => x.date >= start && x.date <= end);
+}
+calcSummary(forSummary);
+
+// 動態標題（把 h3 的「（目前載入）」換成「（今日 ...）」或「（區間）」等）
+applySummaryTitleSuffix(summaryScopeText());
 
   const total = filtered.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -648,6 +689,8 @@ function render(){
   document.getElementById('pageInfo').textContent = `/ ${pages}`;
   document.getElementById('pageInput').value = String(currentPage);
 }
+
+
 
 /* ====== 後端查詢（日期格式統一） ====== */
 async function performSearch(){
